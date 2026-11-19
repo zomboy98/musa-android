@@ -1,13 +1,14 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart' show ValueListenable;
+import 'package:flutter/foundation.dart' show ValueListenable, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mornye/controllers/player_metadata_controller.dart';
 import 'package:mornye/l10n/l10n.dart';
 import 'package:mornye/models/library_collections.dart';
 import 'package:mornye/models/download_item.dart';
+import 'package:mornye/models/quality_replace_result.dart';
 import 'package:mornye/models/track.dart';
 import 'package:mornye/providers/download_queue_provider.dart';
 import 'package:mornye/providers/extension_provider.dart';
@@ -16,7 +17,9 @@ import 'package:mornye/providers/player_video_mode_provider.dart';
 import 'package:mornye/providers/player_video_session_provider.dart';
 import 'package:mornye/providers/settings_provider.dart';
 import 'package:mornye/services/library_media_identity.dart';
+import 'package:mornye/utils/failure_cause.dart';
 import 'package:mornye/utils/logger.dart';
+import 'package:mornye/utils/path_match_keys.dart';
 import 'package:mornye/services/link/link_source_names.dart';
 import 'package:mornye/services/music_player_service.dart';
 import 'package:mornye/services/special_quality_availability.dart';
@@ -112,6 +115,7 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
   String? _switchKey;
   Track? _switchTrack;
   bool _switchCancellable = false;
+  bool _switchReplacing = false;
   QualityMark? _playingMark;
   String? _playingDetail;
   QualityMark? _shownMark;
@@ -134,6 +138,7 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
     Track track,
     TrackQualityChoice choice, {
     double Function(Duration elapsed)? measured,
+    bool replacing = false,
   }) {
     final started = DateTime.now();
     final slow = !isLossyMark(choice.mark);
@@ -145,7 +150,8 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
       _pendingDetail = choice.detail;
       _switchKey = trackCollectionKey(track);
       _switchTrack = track;
-      _switchCancellable = measured == null;
+      _switchCancellable = measured == null || replacing;
+      _switchReplacing = replacing;
     });
     _progress.value = 0;
     _ticker = Timer.periodic(const Duration(milliseconds: 160), (_) {
@@ -176,8 +182,16 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
   void _cancelSwitch() {
     if (!_switching || !_switchCancellable) return;
     final track = _switchTrack;
+    final replacing = _switchReplacing;
     _resetSwitch();
-    if (track != null) unawaited(cancelCatalogQualitySwitch(track));
+    if (track == null) return;
+    if (replacing) {
+      ref
+          .read(downloadQueueProvider.notifier)
+          .cancelTrackQualityReplacement(track);
+    } else {
+      unawaited(cancelCatalogQualitySwitch(track));
+    }
   }
 
   void _resetSwitch() {
@@ -193,6 +207,7 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
       _switchKey = null;
       _switchTrack = null;
       _switchCancellable = false;
+      _switchReplacing = false;
     });
   }
 
@@ -228,6 +243,7 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
       _switchKey = null;
       _switchTrack = null;
       _switchCancellable = false;
+      _switchReplacing = false;
     });
   }
 
@@ -289,6 +305,24 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
       choice.id,
       service: choice.service,
     );
+    if (result.ok) {
+      SpecialQualityAvailability.instance.clearAttemptFailure(
+        track,
+        choice.service,
+        choice.id,
+      );
+    } else if (result.failure != QualitySwitchFailure.cancelled) {
+      SpecialQualityAvailability.instance.noteAttemptFailed(
+        track,
+        choice.service,
+        choice.id,
+      );
+    }
+    debugPrint(
+      'quality-list: switch ${result.ok ? 'ok' : 'failed'} '
+      'service=${choice.service ?? 'none'} id=${choice.id} '
+      'reason=${result.failure?.name ?? 'none'}',
+    );
     if (token != _switchToken) return;
     if (result.ok && mounted) {
       ref.read(playerVideoSessionProvider.notifier).qualityChosen(choice.id);
@@ -305,6 +339,19 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
       _tell(already);
     }
   }
+
+  String _failureReason(AppLocalizations l10n, QualitySwitchFailure failure) =>
+      switch (failure) {
+        QualitySwitchFailure.notCatalogTrack => l10n.qualityGuardNotCatalogTrack,
+        QualitySwitchFailure.identityMismatch =>
+          l10n.qualityGuardIdentityMismatch,
+        QualitySwitchFailure.sourceNotReady => l10n.qualityGuardSourceNotReady,
+        QualitySwitchFailure.casting => l10n.qualityGuardCasting,
+        QualitySwitchFailure.directMode => l10n.qualityGuardDirectMode,
+        QualitySwitchFailure.handoffRejected =>
+          l10n.qualityGuardHandoffRejected,
+        _ => l10n.qualityGuardOther,
+      };
 
   void _tellSwitchFailure(
     TrackQualityChoice choice,
@@ -336,6 +383,12 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
       QualitySwitchFailure.verificationRequired =>
         l10n.qualityPickerSwitchVerify(verification?.name ?? provider),
       QualitySwitchFailure.cancelled => l10n.qualityPickerSwitchCancelled,
+      QualitySwitchFailure.notCatalogTrack ||
+      QualitySwitchFailure.identityMismatch ||
+      QualitySwitchFailure.sourceNotReady ||
+      QualitySwitchFailure.casting ||
+      QualitySwitchFailure.directMode ||
+      QualitySwitchFailure.handoffRejected => _failureReason(l10n, failure!),
       _ =>
         waited >= switchFailureTimedOutAfter
             ? l10n.qualityPickerSwitchTimedOut(provider, format)
@@ -343,9 +396,8 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
     };
     final body =
         '${l10n.qualityPickerSwitchDetailsBody(format, provider, choice.id, '${waited.inSeconds}')}'
-        '\n${l10n.qualityPickerSwitchDetailsCategory((failure ?? QualitySwitchFailure.other).name)}';
+        '\n${l10n.qualityPickerSwitchDetailsCategory(_failureReason(l10n, failure ?? QualitySwitchFailure.other))}';
     final messenger = ScaffoldMessenger.maybeOf(context);
-    final dialogContext = context;
     messenger?.showSnackBar(
       SnackBar(
         content: Text(message),
@@ -362,28 +414,31 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
                   ),
                 ),
               )
-            : SnackBarAction(
-                label: l10n.qualityPickerSwitchDetails,
-                onPressed: () {
-                  if (!dialogContext.mounted) return;
-                  showDialog<void>(
-                    context: dialogContext,
-                    builder: (context) => AlertDialog(
-                      title: Text(l10n.qualityPickerSwitchDetailsTitle),
-                      content: SelectableText(body),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: Text(
-                            MaterialLocalizations.of(context).okButtonLabel,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
+            : _detailsAction(l10n, body),
       ),
+    );
+  }
+
+  SnackBarAction _detailsAction(AppLocalizations l10n, String body) {
+    final dialogContext = context;
+    return SnackBarAction(
+      label: l10n.qualityPickerSwitchDetails,
+      onPressed: () {
+        if (!dialogContext.mounted) return;
+        showDialog<void>(
+          context: dialogContext,
+          builder: (context) => AlertDialog(
+            title: Text(l10n.qualityPickerSwitchDetailsTitle),
+            content: SelectableText(body),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(MaterialLocalizations.of(context).okButtonLabel),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -405,39 +460,126 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
   }) async {
     final messenger = ScaffoldMessenger.maybeOf(context);
     final l10n = context.l10n;
+    final started = DateTime.now();
+    final format = qualityMarkText(
+      context,
+      choice.mark,
+      detail: choice.detail,
+    ).name;
+    final provider = qualityServiceShortName(choice.service ?? service).isEmpty
+        ? choice.id
+        : qualityServiceShortName(choice.service ?? service);
     final token = _beginSwitch(
       track,
       choice,
       measured: _downloadProgress(track, choice.id),
+      replacing: true,
     );
-    final path = await ref
-        .read(downloadQueueProvider.notifier)
-        .replaceTrackQuality(
-          track,
-          choice.service ?? service ?? 'tidal',
-          choice.id,
-          previousPath: previous,
-          previousHistoryId: historyId,
-          onReady: (newPath) async {
-            if (widget.metadata.source != previous) return true;
-            return requestPlaybackSourceSwitch(
-              track,
-              newPath,
-              replacing: previous,
-            );
-          },
-        );
-    if (token != _switchToken) return;
-    await _endSwitch(token, ok: path != null);
-    messenger?.showSnackBar(
+    QualityReplaceResult result;
+    try {
+      result = await ref
+          .read(downloadQueueProvider.notifier)
+          .replaceTrackQuality(
+            track,
+            choice.service ?? service ?? 'tidal',
+            choice.id,
+            previousPath: previous,
+            previousHistoryId: historyId,
+            onReady: (newPath) async {
+              final playing = widget.metadata.source;
+              if (playing == null || !_samePhysicalFile(playing, previous)) {
+                return true;
+              }
+              return requestPlaybackSourceSwitch(
+                track,
+                newPath,
+                replacing: playing,
+              );
+            },
+          );
+    } catch (error) {
+      debugPrint('replace: threw ${error.runtimeType}');
+      result = QualityReplaceResult.failed(
+        QualityReplaceFailure.downloadFailed,
+        detail: error.runtimeType.toString(),
+      );
+    }
+    final failure = result.failure;
+    if (result.ok) {
+      SpecialQualityAvailability.instance.clearAttemptFailure(
+        track,
+        choice.service ?? service,
+        choice.id,
+      );
+    } else if (failure != QualityReplaceFailure.cancelled &&
+        failure != QualityReplaceFailure.sameFile) {
+      SpecialQualityAvailability.instance.noteAttemptFailed(
+        track,
+        choice.service ?? service,
+        choice.id,
+      );
+    }
+    debugPrint(
+      'quality-list: replace ${result.ok ? 'ok' : 'failed'} '
+      'service=${choice.service ?? service ?? 'none'} id=${choice.id} '
+      'reason=${failure?.name ?? 'none'} '
+      'current=${token == _switchToken ? 'yes' : 'no'}',
+    );
+    if (token == _switchToken) await _endSwitch(token, ok: result.ok);
+    if (messenger == null) return;
+    final message = _replaceMessage(l10n, result);
+    final technical = [
+      result.detail ?? '',
+      result.summary ?? '',
+    ].where((part) => part.isNotEmpty).join(' | ');
+    final body = [
+      l10n.qualityPickerSwitchDetailsBody(
+        format,
+        provider,
+        choice.id,
+        '${DateTime.now().difference(started).inSeconds}',
+      ),
+      l10n.qualityPickerSwitchDetailsCategory(message),
+      if (technical.isNotEmpty) l10n.qualityReplaceDetailsTechnical(technical),
+    ].join('\n');
+    messenger.showSnackBar(
       SnackBar(
-        content: Text(
-          path == null
-              ? l10n.qualityPickerSwitchFailed
-              : l10n.qualityPickerReplaced,
-        ),
+        content: Text(message),
+        duration: result.ok ? const Duration(seconds: 4) : switchFailureDuration,
+        showCloseIcon: !result.ok,
+        action: result.ok ? null : _detailsAction(l10n, body),
       ),
     );
+  }
+
+  bool _samePhysicalFile(String a, String b) {
+    if (a == b) return true;
+    final keys = buildPathMatchKeys(b);
+    return buildPathMatchKeys(a).any(keys.contains);
+  }
+
+  String _replaceMessage(AppLocalizations l10n, QualityReplaceResult result) {
+    if (result.ok) {
+      if (!result.switched) return l10n.qualityReplacedReload;
+      if (!result.removedPrevious) return l10n.qualityReplacedKeptPrevious;
+      return l10n.qualityPickerReplaced;
+    }
+    final typed = failureCauseForDownload(result.errorType);
+    final cause = typed == null
+        ? (result.detail ?? '')
+        : failureMessage(l10n, typed);
+    return switch (result.failure!) {
+      QualityReplaceFailure.downloadFailed =>
+        cause.isEmpty
+            ? l10n.qualityReplaceDownloadFailedNoCause
+            : l10n.qualityReplaceDownloadFailed(cause),
+      QualityReplaceFailure.cancelled => l10n.qualityReplaceCancelled,
+      QualityReplaceFailure.timedOut => l10n.qualityReplaceTimedOut,
+      QualityReplaceFailure.noFile => l10n.qualityReplaceNoFile,
+      QualityReplaceFailure.emptyFile => l10n.qualityReplaceEmpty,
+      QualityReplaceFailure.sameFile => l10n.qualityReplaceNoOtherFormat,
+      QualityReplaceFailure.durationMismatch => l10n.qualityReplaceDuration,
+    };
   }
 
   Future<void> _pressVideo(
@@ -561,16 +703,24 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
     String origin,
     Track? track,
     int providers,
-    int choices,
+    List<TrackQualityChoice> choices,
+    List<String> ruledOut,
     String src,
   ) {
     final isrc = (track?.isrc?.trim().isNotEmpty ?? false) ? 'si' : 'no';
+    final failed = [
+      for (final c in choices)
+        if (c.failedLast) '${c.service ?? '-'}/${c.id}',
+    ];
     final line =
         'quality: track=$origin isrc=$isrc providers=$providers '
-        'choices=$choices src=$src';
-    if (_loggedSelector == line) return;
-    _loggedSelector = line;
+        'choices=${choices.length} src=$src';
+    final detail =
+        '$line ruledOut=${ruledOut.join(',')} failedLast=${failed.join(',')}';
+    if (_loggedSelector == detail) return;
+    _loggedSelector = detail;
     _log.i(line);
+    debugPrint('quality-list: $detail');
   }
 
   List<({String service, List<QualityOption> options})> _providers() {
@@ -734,6 +884,7 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
           bitrateKbps: bitrate,
         ) ??
         (mark == declaredMark ? declared?.detail : null);
+    final ruledOut = <String>[];
     final allChoices = track == null
         ? const <TrackQualityChoice>[]
         : mergeProviderQualityChoices(
@@ -745,10 +896,11 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
             currentMark: mark,
             currentDetail: detail,
             keepProviderTwins: true,
+            onRuledOut: (service, id) => ruledOut.add('$service/$id'),
           );
     final choices = allChoices;
     final providerCount = _providers().length;
-    _logSelector(origin, track, providerCount, choices.length, kind ?? 'other');
+    _logSelector(origin, track, providerCount, choices, ruledOut, kind ?? 'other');
     final requestedId = catalog == null
         ? null
         : (catalogPlayback.qualityOverrideFor(catalog) ??

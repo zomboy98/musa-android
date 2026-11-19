@@ -244,6 +244,22 @@ class BugLog extends ChangeNotifier {
     return out.isEmpty ? null : out.join(';');
   }
 
+  /// One line with the stage, error type, cause, provider and attempts of a
+  /// download failure, reduced to the closed lists of the failure log.
+  static String downloadFailureSummary({
+    Object? stage,
+    Object? errorType,
+    Object? cause,
+    Object? provider,
+    Object? providerAttempts,
+  }) => _downloadFrames(
+    stage,
+    errorType,
+    cause,
+    provider,
+    sanitizeProviderAttempts(providerAttempts).join(';'),
+  );
+
   /// [provider] is optional: when null the `provider_` field is omitted (legacy
   /// format). When present it is reduced to [temporaryProvider]'s allowlist, so
   /// URLs, credentials or arbitrary text become `provider_unknown`.

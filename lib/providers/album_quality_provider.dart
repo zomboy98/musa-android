@@ -114,7 +114,8 @@ final trackQualityReplaceProvider = Provider<TrackQualityReplace>(
             qualityId,
             previousPath: previousPath,
             previousHistoryId: previousHistoryId,
-          ),
+          )
+          .then((result) => result.path),
 );
 
 class AlbumQualityReplacer extends Notifier<Map<String, AlbumReplaceProgress>> {

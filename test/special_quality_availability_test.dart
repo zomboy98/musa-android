@@ -87,7 +87,7 @@ void main() {
       expect(downloadQualityRelayAllowed(strict: true), isFalse);
     });
 
-    test('a bulk download that came back as Opus rules atmos out', () {
+    test('a bulk download that came back as Opus only marks the attempt', () {
       final r = _offline();
       final t = _track(isrc: 'USABC1234567');
       r.recordPlayback(
@@ -96,7 +96,8 @@ void main() {
         requestedQuality: 'ac4',
         metadata: _lease(codec: 'opus', provider: 'amazon'),
       );
-      expect(r.atmosStatus(t, 'amzn'), SpecialQualityStatus.unavailable);
+      expect(r.atmosStatus(t, 'amzn'), SpecialQualityStatus.unknown);
+      expect(r.attemptFailed(t, 'amzn', 'ac4'), isTrue);
     });
   });
   group('policy', () {
@@ -128,18 +129,19 @@ void main() {
       },
     );
 
-    test('a fallback to another quality rules atmos out', () {
+    test('a fallback to another quality never hides atmos', () {
       final r = _offline();
-      final t = _track(isrc: 'USABC1234567');
+      final t = _track(isrc: 'USABC1234567', modes: 'DOLBY_ATMOS');
       r.recordPlayback(
         track: t,
         requestedService: 'tidal-web',
         requestedQuality: 'DOLBY_ATMOS',
         metadata: _lease(fallback: true),
       );
-      expect(r.atmosStatus(t, 'tidal-web'), SpecialQualityStatus.unavailable);
-      expect(_offered(r, t), isFalse);
-      expect(_offered(r, _track(isrc: 'USZZZ0000001')), isFalse);
+      expect(r.atmosStatus(t, 'tidal-web'), SpecialQualityStatus.confirmed);
+      expect(_offered(r, t), isTrue);
+      expect(r.attemptFailed(t, 'tidal-web', 'DOLBY_ATMOS'), isTrue);
+      expect(r.attemptFailed(t, 'tidal-web', 'LOSSLESS'), isFalse);
     });
 
     test('a transient failure does not rule atmos out', () {
@@ -222,7 +224,95 @@ void main() {
     });
   });
 
+  group('failed attempts', () {
+    final providers = [
+      (service: 'tidal-web', options: _options),
+      (service: 'amazon', options: _options),
+    ];
+
+    List<String> listed(
+      SpecialQualityAvailability registry,
+      Track track,
+    ) => [
+      for (final c in mergeProviderQualityChoices(
+        providers,
+        track: track,
+        availability: registry,
+        keepProviderTwins: true,
+      ))
+        '${c.service}/${c.id}',
+    ];
+
+    test('after a failed switch the format is still listed and marked', () {
+      final r = _offline();
+      final t = _track(isrc: 'USABC1234567');
+      final before = listed(r, t);
+      expect(before, contains('tidal-web/DOLBY_ATMOS'));
+      expect(before, contains('amazon/DOLBY_ATMOS'));
+      for (final service in ['tidal-web', 'amazon']) {
+        r.noteAttemptFailed(t, service, 'DOLBY_ATMOS');
+        r.noteAttemptFailed(t, service, 'LOSSLESS');
+      }
+      final after = mergeProviderQualityChoices(
+        providers,
+        track: t,
+        availability: r,
+        keepProviderTwins: true,
+      );
+      expect([for (final c in after) '${c.service}/${c.id}'], before);
+      expect(after.every((c) => c.available && c.failedLast), isTrue);
+    });
+
+    test('a download failure that says quality unavailable does not hide it', () {
+      final r = _offline();
+      final t = _track(isrc: 'USABC1234567');
+      r.recordPlayback(
+        track: t,
+        requestedService: 'amazon',
+        requestedQuality: 'DOLBY_ATMOS',
+        metadata: _lease(codec: 'opus', provider: 'amazon'),
+      );
+      expect(listed(r, t), contains('amazon/DOLBY_ATMOS'));
+    });
+
+    test('a later success clears the mark', () {
+      final r = _offline();
+      final t = _track(isrc: 'USABC1234567');
+      r.noteAttemptFailed(t, 'amazon', 'DOLBY_ATMOS');
+      r.clearAttemptFailure(t, 'amazon', 'DOLBY_ATMOS');
+      expect(r.attemptFailed(t, 'amazon', 'DOLBY_ATMOS'), isFalse);
+    });
+
+    test('rules already hidden by catalog data are still reported', () {
+      final r = _offline();
+      final t = _track(isrc: 'USABC1234567', modes: 'STEREO', source: 'tidal-web');
+      final hidden = <String>[];
+      mergeProviderQualityChoices(
+        providers,
+        track: t,
+        availability: r,
+        keepProviderTwins: true,
+        onRuledOut: (service, id) => hidden.add('$service/$id'),
+      );
+      expect(hidden, ['tidal-web/DOLBY_ATMOS']);
+    });
+  });
+
   group('persistence', () {
+    test('an unavailable verdict saved by a failed attempt is ignored', () async {
+      final dir = await Directory.systemTemp.createTemp('availability');
+      addTearDown(() => dir.delete(recursive: true));
+      final clock = _Clock();
+      final t = _track(isrc: 'AAAAAAAAAAAA');
+      File('${dir.path}/special_quality_availability.json').writeAsStringSync(
+        '{"tidal|AAAAAAAAAAAA":{"atmos":"unavailable","checkedAt":'
+        '"${clock.now.toIso8601String()}"}}',
+      );
+      final r = _offline(clock: clock, dir: dir);
+      await r.ensureLoaded();
+      expect(r.atmosStatus(t, 'tidal-web'), SpecialQualityStatus.unknown);
+    });
+
     test('saves and reads back from disk, dropping expired entries', () async {
       final dir = await Directory.systemTemp.createTemp('availability');
       addTearDown(() => dir.delete(recursive: true));
@@ -303,6 +393,19 @@ void main() {
         expect(r.atmosStatus(amazon, 'amzn'), SpecialQualityStatus.unknown);
       },
     );
+
+    test('an answer about another track proves nothing', () async {
+      final r = _offline(
+        probe: true,
+        load: (_, _, _) async => {
+          'track': {'id': '999', 'name': 'other', 'audio_modes': ''},
+        },
+      );
+      final t = _track(id: '1');
+      r.atmosStatus(t, 'tidal-web');
+      await pumpEventQueue();
+      expect(r.atmosStatus(t, 'tidal-web'), SpecialQualityStatus.unknown);
+    });
 
     test('a slow lookup never blocks and ends hidden', () async {
       final r = _offline(

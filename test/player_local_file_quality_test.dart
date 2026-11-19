@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mornye/controllers/player_metadata_controller.dart';
 import 'package:mornye/l10n/app_localizations.dart';
+import 'package:mornye/models/quality_replace_result.dart';
 import 'package:mornye/models/settings.dart';
 import 'package:mornye/models/track.dart';
 import 'package:mornye/providers/download_queue_provider.dart';
@@ -73,7 +74,7 @@ class _Queue extends DownloadQueueNotifier {
   final replaced = <({String service, String quality, String previous})>[];
 
   @override
-  Future<String?> replaceTrackQuality(
+  Future<QualityReplaceResult> replaceTrackQuality(
     Track track,
     String service,
     String qualityId, {
@@ -81,13 +82,14 @@ class _Queue extends DownloadQueueNotifier {
     required String previousHistoryId,
     Future<bool> Function(String newPath)? onReady,
     Duration timeout = const Duration(minutes: 30),
+    Future<int?> Function(String path)? measureDuration,
   }) async {
     replaced.add((
       service: service,
       quality: qualityId,
       previous: previousPath,
     ));
-    return null;
+    return const QualityReplaceResult.failed(QualityReplaceFailure.cancelled);
   }
 }
 

@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mornye/controllers/local_playback.dart';
 import 'package:mornye/l10n/l10n.dart';
 import 'package:mornye/models/library_collections.dart';
+import 'package:mornye/models/library_database_models.dart';
 import 'package:mornye/models/track.dart';
 import 'package:mornye/providers/download_queue_provider.dart';
+import 'package:mornye/providers/local_library_provider.dart';
 import 'package:mornye/providers/saved_library_tracks_provider.dart';
 import 'package:mornye/services/catalog_playback.dart';
 import 'package:mornye/services/catalog_audio_store.dart';
@@ -99,6 +101,9 @@ final playlistRealDownloadProvider = FutureProvider.autoDispose
         // Other sources may still be available.
       }
       final history = ref.read(downloadHistoryProvider.notifier);
+      ref.watch(
+        localLibraryProvider.select((state) => state.loadedIndexVersion),
+      );
       try {
         final candidates = await history.findTrackCandidatesAsync(
           HistoryLookupRequest(
@@ -115,6 +120,31 @@ final playlistRealDownloadProvider = FutureProvider.autoDispose
         }
       } catch (_) {
         /* Other sources may still be available. */
+      }
+      try {
+        final library = await ref
+            .read(localLibraryProvider.notifier)
+            .findTrackCandidatesBatch([
+              LocalLibraryBatchLookupRequest(
+                isrc: track.isrc,
+                trackName: track.name,
+                artistName: track.artistName,
+              ),
+            ]);
+        for (final item in library.first) {
+          if (matchesCatalogIdentity(
+                track,
+                isrc: item.isrc,
+                title: item.trackName,
+                artist: item.artistName,
+                durationSeconds: item.duration,
+              ) &&
+              await savedDownloadFileAccessible(item.filePath)) {
+            return true;
+          }
+        }
+      } catch (_) {
+        /* The scanned library may be unavailable. */
       }
       return false;
     });

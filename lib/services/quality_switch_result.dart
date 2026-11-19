@@ -8,6 +8,12 @@ enum QualitySwitchFailure {
   unsupportedFormat,
   verificationRequired,
   cancelled,
+  notCatalogTrack,
+  identityMismatch,
+  sourceNotReady,
+  casting,
+  directMode,
+  handoffRejected,
   other,
 }
 

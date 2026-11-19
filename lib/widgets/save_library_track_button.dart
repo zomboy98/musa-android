@@ -10,12 +10,17 @@ import 'package:mornye/models/download_item.dart';
 import 'package:mornye/models/track.dart';
 import 'package:mornye/providers/saved_library_tracks_provider.dart';
 import 'package:mornye/providers/download_queue_provider.dart';
-import 'package:mornye/providers/track_download_removal.dart';
 import 'package:mornye/utils/saf_download_tree.dart';
 import 'package:mornye/widgets/download_progress_icon.dart';
 import 'package:mornye/widgets/playlist_download_status.dart';
+import 'package:mornye/widgets/remove_track_download.dart';
 import 'package:mornye/widgets/add_to_music_sheet.dart';
 import 'package:mornye/widgets/track_detail_actions.dart';
+
+final _touchTarget = IconButton.styleFrom(
+  minimumSize: const Size.square(44),
+  tapTargetSize: MaterialTapTargetSize.padded,
+);
 
 /// Saves a catalog reference and optionally queues a newly saved song.
 class SaveLibraryTrackButton extends ConsumerStatefulWidget {
@@ -84,24 +89,8 @@ class _SaveLibraryTrackButtonState
   Future<void> _removeDownload() async {
     if (_removing) return;
     _removing = true;
-    final container = ProviderScope.containerOf(context, listen: false);
-    final messenger = ScaffoldMessenger.of(context);
-    final l10n = context.l10n;
     try {
-      final removed = await removeTrackDownloads(container, widget.track);
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            removed > 0
-                ? l10n.snackbarDeletedTracks(1)
-                : l10n.trackFileUnavailable,
-          ),
-        ),
-      );
-    } catch (_) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(l10n.trackFileUnavailable)),
-      );
+      await removeTrackDownloadWithFeedback(context, widget.track);
     } finally {
       _removing = false;
     }
@@ -147,6 +136,7 @@ class _SaveLibraryTrackButtonState
       children: [
         IconButton(
           key: const ValueKey('save-library-track'),
+          style: _touchTarget,
           tooltip: contains
               ? '${context.l10n.libraryInLibrary} • ${MaterialLocalizations.of(context).showMenuTooltip}'
               : context.l10n.saveCatalogTrack,
@@ -157,6 +147,7 @@ class _SaveLibraryTrackButtonState
         ),
         IconButton(
           key: const ValueKey('download-library-track'),
+          style: _touchTarget,
           tooltip: available ? l10n.trackRemoveFromDevice : downloadAction,
           icon: TrackDownloadProgressIcon(
             track: widget.track,

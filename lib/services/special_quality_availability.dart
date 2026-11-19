@@ -81,6 +81,7 @@ class SpecialQualityAvailability extends ChangeNotifier {
   final Set<String> _probing = {};
   final Set<String> _probedWithoutProof = {};
   final Map<String, DateTime> _probeFailedAt = {};
+  final Map<String, DateTime> _attemptFailedAt = {};
   Future<void>? _loading;
   Future<void> _writing = Future.value();
 
@@ -254,7 +255,7 @@ class SpecialQualityAvailability extends ChangeNotifier {
       if (modes.toUpperCase().contains('DOLBY_ATMOS')) {
         _record(track, provider, confirmed: true);
       } else if (provider == 'tidal' &&
-          (data['id'] ?? data['name'] ?? '').toString().isNotEmpty) {
+          _sameNativeId(data['id']?.toString(), nativeId)) {
         _record(track, provider, confirmed: false);
       } else {
         _probedWithoutProof.add(probeKey);
@@ -269,11 +270,51 @@ class SpecialQualityAvailability extends ChangeNotifier {
     }
   }
 
+  static String _nativeIdCore(String? raw) {
+    final text = (raw ?? '').trim().toLowerCase();
+    final cut = text.lastIndexOf(':');
+    return cut < 0 ? text : text.substring(cut + 1);
+  }
+
+  bool _sameNativeId(String? answered, String asked) {
+    final left = _nativeIdCore(answered);
+    return left.isNotEmpty && left == _nativeIdCore(asked);
+  }
+
   void _record(Track track, String provider, {required bool confirmed}) {
     final key = _lookupKeys(track, provider).firstOrNull;
     if (key == null) return;
     _learned[key] = (confirmed: confirmed, checkedAt: _clock());
     unawaited(_persist());
+  }
+
+  String? _attemptKey(Track track, String? service, String qualityId) {
+    final provider = _providerFor(track, service);
+    final identity = _identity(track);
+    final quality = qualityId.trim().toLowerCase();
+    if (provider == null || identity == null || quality.isEmpty) return null;
+    return '$provider|$identity|$quality';
+  }
+
+  /// Remembers, for this run only, that asking [service] for [qualityId] failed
+  /// last time. It never hides the format: the song can be asked again.
+  void noteAttemptFailed(Track track, String? service, String qualityId) {
+    final key = _attemptKey(track, service, qualityId);
+    if (key == null) return;
+    _attemptFailedAt[key] = _clock();
+    notifyListeners();
+  }
+
+  void clearAttemptFailure(Track track, String? service, String qualityId) {
+    final key = _attemptKey(track, service, qualityId);
+    if (key == null || _attemptFailedAt.remove(key) == null) return;
+    notifyListeners();
+  }
+
+  bool attemptFailed(Track? track, String? service, String qualityId) {
+    if (track == null) return false;
+    final key = _attemptKey(track, service, qualityId);
+    return key != null && _attemptFailedAt.containsKey(key);
   }
 
   void markConfirmed(Track track, String? service) {
@@ -316,8 +357,7 @@ class SpecialQualityAvailability extends ChangeNotifier {
     if (!isSpatialQualityId(requestedQuality) || asked == null) return;
     final fellBack = metadata['quality_fallback_used'] == true;
     if ((fellBack || codec.isNotEmpty) && failureWasUnavailability) {
-      _record(track, asked, confirmed: false);
-      notifyListeners();
+      noteAttemptFailed(track, asked, requestedQuality);
     }
   }
 
@@ -340,6 +380,7 @@ class SpecialQualityAvailability extends ChangeNotifier {
         if (at == null || (state != 'confirmed' && state != 'unavailable')) {
           continue;
         }
+        if (state == 'unavailable' && value['proof'] != 'catalog') continue;
         final current = _learned[entry.key as String];
         if (current != null && current.checkedAt.isAfter(at)) continue;
         final item = (confirmed: state == 'confirmed', checkedAt: at);
@@ -362,6 +403,7 @@ class SpecialQualityAvailability extends ChangeNotifier {
             if (_fresh(entry.value))
               entry.key: {
                 'atmos': entry.value.confirmed ? 'confirmed' : 'unavailable',
+                if (!entry.value.confirmed) 'proof': 'catalog',
                 'checkedAt': entry.value.checkedAt.toIso8601String(),
               },
         };

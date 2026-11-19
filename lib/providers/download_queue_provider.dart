@@ -1,12 +1,17 @@
 import 'package:mornye/constants/storage_defaults.dart';
 import 'dart:async';
 import 'package:mornye/services/music_player_service.dart'
-    show notifyPermanentDownloadReady, notifyPermanentDownloadSelected;
+    show
+        notifyPermanentDownloadReady,
+        notifyPermanentDownloadSelected,
+        notifyPlaybackSourceRelocated;
 import 'package:mornye/providers/local_library_provider.dart';
 import 'dart:math';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/widgets.dart';
+import 'package:mornye/models/quality_replace_result.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -26,6 +31,7 @@ import 'package:mornye/providers/download_verification_retry_guard.dart';
 import 'package:mornye/providers/download_queue_state.dart';
 import 'package:mornye/providers/download_origin_inference.dart';
 import 'package:mornye/providers/keep_downloaded_provider.dart';
+import 'package:mornye/models/library_collections.dart' show trackCollectionKey;
 import 'package:mornye/providers/library_collections_provider.dart';
 import 'package:mornye/providers/download_queue_policy.dart';
 import 'package:mornye/services/download_queue_persistence.dart';
@@ -610,6 +616,8 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
 
   bool _networkPausedByWifiOnly = false;
   final Set<String> _locallyCancelledItemIds = {};
+  final Map<String, Completer<DownloadItem?>> _replaceWaiters = {};
+  final Map<String, String> _failureSummaries = {};
   final Set<String> _pausePendingItemIds = {};
   final Map<String, Future<void>> _nativeCancelRequests = {};
   final Map<String, Future<void>> _activeDownloadAttempts = {};
@@ -679,6 +687,10 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     });
 
     ref.onDispose(() {
+      for (final waiter in _replaceWaiters.values.toList()) {
+        if (!waiter.isCompleted) waiter.complete(null);
+      }
+      _replaceWaiters.clear();
       if (!_queueRestored.isCompleted) _queueRestored.complete();
       if (!_queueHydrated.isCompleted) _queueHydrated.complete();
       _verificationWaitCoordinator.cancelAll();
@@ -1815,13 +1827,12 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   }
 
   /// Downloads [track] again at [qualityId] through the ordinary queue and,
-  /// only once the new file is finished, replaces the previous one: [onReady]
-  /// may move playback onto it first, then the previous file and its history
-  /// row go away, leaving a single file. The new file keeps the previous
-  /// one's library placement because it is written by the same pipeline with
-  /// the same naming rules. Returns the new path, or null when the download
-  /// failed or produced no different file; the previous file is then kept.
-  Future<String?> replaceTrackQuality(
+  /// only once the new file is finished and verified, replaces the previous
+  /// one: [onReady] may move playback onto it first, then the previous file
+  /// and its history row go away and the new file takes the previous file's
+  /// name, leaving a single file. When the new file is not acceptable it is
+  /// deleted and the previous file is kept.
+  Future<QualityReplaceResult> replaceTrackQuality(
     Track track,
     String service,
     String qualityId, {
@@ -1829,6 +1840,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     required String previousHistoryId,
     Future<bool> Function(String newPath)? onReady,
     Duration timeout = const Duration(minutes: 30),
+    Future<int?> Function(String path)? measureDuration,
   }) async {
     final settings = ref.read(settingsProvider);
     final takenIds = state.items.map((item) => item.id).toSet();
@@ -1842,41 +1854,221 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       preserveQualityVariant: true,
       networkDownloadFolder: settings.networkDownloadFolder,
     );
+    final waiter = Completer<DownloadItem?>();
+    _replaceWaiters[id] = waiter;
+    debugPrint(
+      'replace: start kind=${_replacePathKind(previousPath)} '
+      'service=${item.service} quality=$qualityId '
+      'queue=${state.items.length} processing=${state.isProcessing}',
+    );
     updateSettings(settings);
     state = state.copyWith(items: [...state.items, item]);
     _saveQueueToStorage();
     if (!state.isProcessing) {
       Future.microtask(() => _processQueue());
     }
-    final deadline = DateTime.now().add(timeout);
-    while (ref.mounted && DateTime.now().isBefore(deadline)) {
-      await Future<void>.delayed(const Duration(milliseconds: 400));
-      if (!ref.mounted) return null;
-      final current = _findItemById(id);
-      if (current == null ||
-          current.status == DownloadStatus.failed ||
-          current.status == DownloadStatus.skipped) {
+    var timedOut = false;
+    final done = await waiter.future.timeout(
+      timeout,
+      onTimeout: () {
+        timedOut = true;
         return null;
-      }
-      if (current.status != DownloadStatus.completed) continue;
-      final newPath = current.filePath;
-      if (newPath == null ||
-          newPath.trim().isEmpty ||
-          newPath == previousPath) {
-        return null;
-      }
-      if (onReady != null && !await onReady(newPath)) return null;
-      if (await deleteFile(previousPath)) {
-        if (previousHistoryId.isNotEmpty) {
-          await ref
-              .read(downloadHistoryProvider.notifier)
-              .removeFromHistory(previousHistoryId);
-        }
-        await removeDeletedLibraryFileEntries(ref.container, [previousPath]);
-      }
-      return newPath;
+      },
+    );
+    _replaceWaiters.remove(id);
+    final summary = _failureSummaries.remove(id);
+    if (!ref.mounted) {
+      return const QualityReplaceResult.failed(QualityReplaceFailure.cancelled);
     }
-    return null;
+    if (done == null) {
+      debugPrint('replace: ended timeout=$timedOut');
+      return QualityReplaceResult.failed(
+        timedOut
+            ? QualityReplaceFailure.timedOut
+            : QualityReplaceFailure.cancelled,
+      );
+    }
+    if (done.status == DownloadStatus.failed) {
+      debugPrint(
+        'replace: ended failed type=${done.errorType?.name ?? 'none'} '
+        '${summary ?? 'no-summary'}',
+      );
+      return QualityReplaceResult.failed(
+        QualityReplaceFailure.downloadFailed,
+        detail: shortFailureCause(done.error),
+        errorType: done.errorType,
+        summary: summary,
+      );
+    }
+    if (done.status != DownloadStatus.completed) {
+      debugPrint('replace: ended status=${done.status.name}');
+      return const QualityReplaceResult.failed(QualityReplaceFailure.cancelled);
+    }
+    final newPath = done.filePath;
+    if (newPath == null || newPath.trim().isEmpty) {
+      debugPrint('replace: ended no-path');
+      return const QualityReplaceResult.failed(QualityReplaceFailure.noFile);
+    }
+    if (physicalFilePathsMatch(newPath, previousPath)) {
+      debugPrint('replace: ended same-file');
+      return const QualityReplaceResult.failed(QualityReplaceFailure.sameFile);
+    }
+    debugPrint('replace: ready kind=${_replacePathKind(newPath)}');
+
+    final rejected = await _rejectionFor(
+      track,
+      previousPath,
+      newPath,
+      measureDuration ?? _measureDurationSeconds,
+    );
+    if (rejected != null) {
+      debugPrint('replace: rejected reason=${rejected.name}');
+      await _discardReplacement(newPath);
+      return QualityReplaceResult.failed(rejected);
+    }
+
+    var switched = true;
+    if (onReady != null) {
+      try {
+        switched = await onReady(newPath);
+      } catch (_) {
+        switched = false;
+      }
+      debugPrint('replace: switch=${switched ? 'ok' : 'false'}');
+    }
+
+    final removedPrevious = await deleteFile(previousPath);
+    debugPrint('replace: deleted-old=$removedPrevious');
+    if (removedPrevious) {
+      if (previousHistoryId.isNotEmpty) {
+        await ref
+            .read(downloadHistoryProvider.notifier)
+            .removeFromHistory(previousHistoryId);
+      }
+      try {
+        await removeDeletedLibraryFileEntries(ref.container, [previousPath]);
+      } catch (_) {}
+    }
+
+    var finalPath = newPath;
+    if (removedPrevious) {
+      finalPath = await _takePreviousName(previousPath, newPath) ?? newPath;
+    }
+    if (finalPath != newPath) {
+      debugPrint('replace: renamed=true');
+      await _safeRelocate(newPath, finalPath);
+    } else if (!switched && onReady != null) {
+      await _safeRelocate(previousPath, finalPath);
+    }
+    return QualityReplaceResult.success(
+      finalPath,
+      switched: switched,
+      removedPrevious: removedPrevious,
+    );
+  }
+
+  /// Cancels the downloads started by [replaceTrackQuality] for [track]. The
+  /// pending replacement ends as cancelled and the previous file is kept.
+  void cancelTrackQualityReplacement(Track track) {
+    final key = trackCollectionKey(track);
+    for (final id in _replaceWaiters.keys.toList()) {
+      final item = _findItemById(id);
+      if (item == null) {
+        _replaceWaiters.remove(id)?.complete(null);
+      } else if (trackCollectionKey(item.track) == key) {
+        cancelItem(id);
+      }
+    }
+  }
+
+  String _replacePathKind(String path) => path.startsWith('content://')
+      ? 'saf'
+      : path.startsWith('network://')
+      ? 'network'
+      : 'path';
+
+  Future<int?> _measureDurationSeconds(String path) async {
+    try {
+      final metadata = await PlatformBridge.readFileMetadata(path);
+      final value = metadata['duration'];
+      return value is num && value > 0 ? value.round() : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<QualityReplaceFailure?> _rejectionFor(
+    Track track,
+    String previousPath,
+    String newPath,
+    Future<int?> Function(String path) measure,
+  ) async {
+    final stat = await fileStat(newPath);
+    if (stat == null) return QualityReplaceFailure.noFile;
+    final size = stat.size;
+    if (size != null && size <= 0) return QualityReplaceFailure.emptyFile;
+    final actual = await measure(newPath);
+    if (actual == null || actual <= 0) return null;
+    final expected =
+        await measure(previousPath) ?? (track.duration > 0 ? track.duration : 0);
+    if (expected <= 0) return null;
+    final tolerance = max(3.0, expected * 0.015);
+    return (actual - expected).abs() > tolerance
+        ? QualityReplaceFailure.durationMismatch
+        : null;
+  }
+
+  Future<void> _discardReplacement(String newPath) async {
+    try {
+      final history = ref.read(downloadHistoryProvider.notifier);
+      final row = await history.getByFilePathAsync(newPath);
+      await deleteFile(newPath);
+      if (row != null) await history.removeFromHistory(row.id);
+    } catch (_) {
+      await deleteFile(newPath);
+    }
+    try {
+      await removeDeletedLibraryFileEntries(ref.container, [newPath]);
+    } catch (_) {}
+  }
+
+  Future<String?> _takePreviousName(String previousPath, String newPath) async {
+    if (isContentUri(previousPath) ||
+        isContentUri(newPath) ||
+        previousPath.startsWith('network://') ||
+        newPath.startsWith('network://')) {
+      return null;
+    }
+    if (!p.equals(p.dirname(previousPath), p.dirname(newPath))) return null;
+    final target = p.join(
+      p.dirname(newPath),
+      '${p.basenameWithoutExtension(previousPath)}${p.extension(newPath)}',
+    );
+    if (p.equals(target, newPath)) return null;
+    try {
+      if (await File(target).exists() && !await deleteFile(target)) return null;
+      await File(newPath).rename(target);
+    } catch (_) {
+      return null;
+    }
+    try {
+      final history = ref.read(downloadHistoryProvider.notifier);
+      final row = await history.getByFilePathAsync(newPath);
+      if (row != null) {
+        await history.addToHistory(
+          row.copyWith(filePath: target),
+          preserveTrackVariant: true,
+        );
+      }
+      await removeDeletedLibraryFileEntries(ref.container, [newPath]);
+    } catch (_) {}
+    return target;
+  }
+
+  Future<void> _safeRelocate(String from, String to) async {
+    try {
+      await notifyPlaybackSourceRelocated(from, to);
+    } catch (_) {}
   }
 
   /// Enqueues a selection without album-batch normalization or naming rules.
@@ -2140,6 +2332,11 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       }
     }
     state = state.withItemReplacements({index: next});
+    if (status == DownloadStatus.completed ||
+        status == DownloadStatus.failed ||
+        status == DownloadStatus.skipped) {
+      _replaceWaiters.remove(id)?.complete(next);
+    }
 
     if (Platform.isAndroid && status == DownloadStatus.finalizing) {
       PlatformBridge.clearItemProgress(id).catchError((_) {});
@@ -2176,6 +2373,15 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     final priorItem = _findItemById(id);
     final priorStatus = priorItem?.status;
     final cancelled = _isLocallyCancelled(id, item: priorItem);
+    if (_replaceWaiters.containsKey(id)) {
+      _failureSummaries[id] = BugLog.downloadFailureSummary(
+        stage: diagnosticStage,
+        errorType: diagnosticErrorType,
+        cause: diagnosticCause,
+        provider: diagnosticProvider,
+        providerAttempts: diagnosticProviderAttempts,
+      );
+    }
     updateItemStatus(
       id,
       DownloadStatus.failed,
@@ -2956,6 +3162,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       _cancelPendingSaveChecks(removedItem.track);
     }
     _locallyCancelledItemIds.remove(id);
+    _replaceWaiters.remove(id)?.complete(null);
     state = state.withoutItem(id);
     if (!completedCleanup)
       _reserveNativeDiscard(selectionStart, all: false, ids: {id});

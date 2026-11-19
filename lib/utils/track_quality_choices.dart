@@ -44,6 +44,7 @@ class TrackQualityChoice {
     this.current = false,
     this.available = true,
     this.checking = false,
+    this.failedLast = false,
     this.markOverride,
     this.detail,
     this.service,
@@ -58,6 +59,10 @@ class TrackQualityChoice {
   final bool current;
   final bool available;
   final bool checking;
+
+  /// The last attempt to switch to this format failed. It only informs: the
+  /// format stays offered and can be asked for again.
+  final bool failedLast;
   final QualityMark? markOverride;
   final String? detail;
   final String? service;
@@ -70,6 +75,7 @@ class TrackQualityChoice {
     String? detail,
     String? tag,
     bool? checking,
+    bool? failedLast,
   }) => TrackQualityChoice(
     id: id,
     label: label,
@@ -79,6 +85,7 @@ class TrackQualityChoice {
     current: current ?? this.current,
     available: available,
     checking: checking ?? this.checking,
+    failedLast: failedLast ?? this.failedLast,
     markOverride: markOverride,
     detail: detail ?? this.detail,
     service: service,
@@ -164,7 +171,7 @@ List<QualityOption> withDeclaredQualityKinds(
 /// the catalog, found by a lookup, or already played); while a lookup runs it
 /// is not ruled out but shown as checking. On Tidal the declared audio quality
 /// is the ceiling for lossless and Hi-Res. Missing data rules out nothing
-/// else.
+/// else. A failed attempt to switch never rules a format out.
 bool qualityRuledOutForTrack(
   QualityBadgeFormat format,
   Track? track, {
@@ -278,6 +285,9 @@ List<TrackQualityChoice> buildTrackQualityChoices({
           current: isCurrent,
           available: !ruledOut,
           checking: checking,
+          failedLast:
+              !isCurrent &&
+              registry.attemptFailed(track, service, option.id),
         );
       }(),
   ];
@@ -357,7 +367,7 @@ bool qualityRequestDiffers(QualityMark requested, QualityMark actual) {
 /// alike get the provider's short name as a tag. Unavailable entries are left
 /// out. With [keepProviderTwins] an option another provider also offers is
 /// kept under each provider, so the user picks the provider as well as the
-/// format.
+/// format. [onRuledOut] hears each option the song's catalog data rules out.
 List<TrackQualityChoice> mergeProviderQualityChoices(
   Iterable<({String service, Iterable<QualityOption> options})> providers, {
   Track? track,
@@ -368,6 +378,7 @@ List<TrackQualityChoice> mergeProviderQualityChoices(
   String? currentDetail,
   SpecialQualityAvailability? availability,
   bool keepProviderTwins = false,
+  void Function(String service, String id)? onRuledOut,
 }) {
   final entries = <_Merged>[];
   var rank = -1;
@@ -386,7 +397,10 @@ List<TrackQualityChoice> mergeProviderQualityChoices(
       spatialOnRequest: true,
     );
     for (final choice in choices) {
-      if (!choice.available) continue;
+      if (!choice.available) {
+        onRuledOut?.call(provider.service, choice.id);
+        continue;
+      }
       final unproven =
           choice.detail == null && choice.mark == QualityMark.lossy;
       final twin = unproven
@@ -423,6 +437,7 @@ List<TrackQualityChoice> mergeProviderQualityChoices(
             detail: choice.detail,
             service: provider.service,
             checking: choice.checking,
+            failedLast: choice.failedLast,
           ),
           rank,
           choice.current,

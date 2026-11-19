@@ -4,6 +4,8 @@ import 'package:mornye/l10n/l10n.dart';
 import 'package:mornye/models/track.dart';
 import 'package:mornye/providers/download_history_provider.dart';
 import 'package:mornye/utils/quality_mark.dart';
+import 'package:mornye/widgets/remove_track_download.dart';
+import 'package:mornye/widgets/tap_target_expander.dart';
 import 'package:mornye/widgets/quality_mark_art.dart';
 
 const double downloadedFormatMarkWidth = 56;
@@ -121,11 +123,16 @@ class DownloadedFormatMark extends ConsumerWidget {
     this.track,
     this.format,
     this.onArtwork = false,
+    this.removable = false,
   });
 
   final Track? track;
   final DownloadedFormat? format;
   final bool onArtwork;
+
+  /// Tapping the mark of a [track] offers to delete its local files. Only
+  /// for rows whose mark is not mistaken for a plain label.
+  final bool removable;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -168,7 +175,7 @@ class DownloadedFormatMark extends ConsumerWidget {
         ],
       ),
     );
-    return Semantics(
+    final markWidget = Semantics(
       label: label,
       container: true,
       child: ExcludeSemantics(
@@ -198,6 +205,21 @@ class DownloadedFormatMark extends ConsumerWidget {
               ),
             ),
           ),
+        ),
+      ),
+    );
+    final target = track;
+    if (!removable || target == null) return markWidget;
+    void remove() =>
+        removeTrackDownloadWithFeedback(context, target, confirm: true);
+    return TapTargetExpander(
+      child: Semantics(
+        button: true,
+        onTap: remove,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: remove,
+          child: markWidget,
         ),
       ),
     );

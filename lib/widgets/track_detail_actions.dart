@@ -128,6 +128,7 @@ Future<List<SavedDownloadPathStatus>> _batchDownloadStatuses(
           isrc: item.isrc,
           title: item.trackName,
           artist: item.artistName,
+          durationSeconds: item.duration,
         ))
           item.filePath,
     ];

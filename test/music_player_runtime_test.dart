@@ -45,6 +45,7 @@ import 'package:mornye/services/link/features/link_track_resolver.dart';
 import 'package:mornye/services/link/link_protocol.dart';
 import 'package:mornye/services/media_library_browser.dart';
 import 'package:mornye/services/music_player_service.dart';
+import 'package:mornye/services/quality_switch_result.dart';
 import 'package:mornye/services/download_queue_persistence.dart';
 import 'package:mornye/services/network_metadata_service.dart';
 import 'package:mornye/services/network_playback_cache.dart';
@@ -7359,5 +7360,94 @@ void main() {
         expect(preview.media.toMediaItem(covers: covers).artUri, isNull);
       },
     );
+  });
+
+  group('source switch of a local downloaded file', () {
+    const fromHistory = Track(
+      id: 'row-song',
+      name: 'Song',
+      artistName: 'Artist',
+      albumName: 'Album',
+      duration: 60,
+      isrc: 'USAAA0000001',
+    );
+    const local = PlayableMedia(
+      id: '/music/Artist/Album/01 - Song.m4a',
+      source: '/music/Artist/Album/01 - Song.m4a',
+      title: 'Song',
+      artist: 'Artist',
+      duration: Duration(seconds: 60),
+    );
+
+    for (final playing in [true, false]) {
+      test('moves ${playing ? 'playing' : 'paused'} playback onto the new '
+          'file at the same position', () async {
+        final decks = <_Deck>[];
+        final player = await _runtime(decks: decks).initialize();
+        await player.setQueueAndPlay([local]);
+        if (!playing) await player.pause();
+        decks.first.position = const Duration(seconds: 21);
+        final switched = await player.switchPlaybackSource(
+          fromHistory,
+          '/music/Artist/Album/01 - Song.flac',
+          replacing: local.source,
+        );
+        expect(switched, isTrue);
+        expect(decks.last.sources, ['/music/Artist/Album/01 - Song.flac']);
+        expect(decks.last.position, const Duration(seconds: 21));
+        expect(
+          player.mediaItem.value?.extras?['source'],
+          '/music/Artist/Album/01 - Song.flac',
+        );
+      });
+    }
+
+    test('a local file with no catalog identity says why it cannot switch '
+        'live', () async {
+      final player = await _runtime().initialize();
+      await player.setQueueAndPlay([local]);
+      final result = await player.switchCatalogQualityResult(
+        fromHistory,
+        'LOSSLESS',
+      );
+      expect(result.failure, QualitySwitchFailure.notCatalogTrack);
+    });
+
+    test('a catalog song other than the playing one is an identity '
+        'mismatch, not an unknown failure', () async {
+      const playing = Track(
+        id: 'playing',
+        name: 'Playing',
+        artistName: 'Artist',
+        albumName: 'Album',
+        duration: 60,
+        source: 'tidal',
+      );
+      final player = await _runtime().initialize();
+      await player.setQueueAndPlay([playableFromCatalogTrack(playing)]);
+      final result = await player.switchCatalogQualityResult(
+        playing.copyWith(id: 'other'),
+        'LOSSLESS',
+      );
+      expect(result.failure, QualitySwitchFailure.identityMismatch);
+    });
+
+    test('a song without source or ISRC still matches itself', () async {
+      const playing = Track(
+        id: 'bare',
+        name: 'Bare',
+        artistName: 'Artist',
+        albumName: 'Album',
+        duration: 60,
+      );
+      final player = await _runtime().initialize();
+      await player.setQueueAndPlay([playableFromCatalogTrack(playing)]);
+      final result = await player.switchCatalogQualityResult(
+        playing,
+        'LOSSLESS',
+      );
+      expect(result.failure, isNot(QualitySwitchFailure.identityMismatch));
+      expect(result.failure, isNot(QualitySwitchFailure.notCatalogTrack));
+    });
   });
 }

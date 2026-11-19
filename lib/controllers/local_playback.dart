@@ -5,8 +5,8 @@ import 'package:mornye/providers/download_queue_provider.dart';
 import 'package:mornye/providers/local_library_provider.dart';
 import 'package:mornye/providers/playback_provider.dart';
 import 'package:mornye/providers/settings_provider.dart';
+import 'package:mornye/utils/catalog_identity.dart';
 import 'package:mornye/utils/file_access.dart';
-import 'package:mornye/utils/isrc_utils.dart';
 import 'package:mornye/utils/desktop_platform.dart';
 import 'package:mornye/widgets/app_snack_bar.dart';
 
@@ -18,6 +18,7 @@ bool historyMatchesTrack(Track track, DownloadHistoryItem item) =>
       isrc: item.isrc,
       title: item.trackName,
       artist: item.artistName,
+      durationSeconds: item.duration,
     );
 
 bool matchesCatalogIdentity(
@@ -25,19 +26,17 @@ bool matchesCatalogIdentity(
   required String? isrc,
   required String title,
   required String artist,
-}) {
-  final trackIsrc = normalizeIsrc(track.isrc);
-  final itemIsrc = normalizeIsrc(isrc);
-  if (trackIsrc.isNotEmpty && itemIsrc.isNotEmpty) {
-    return trackIsrc == itemIsrc;
-  }
-  final wantedTitle = track.name.trim().toLowerCase();
-  final wantedArtist = track.artistName.trim().toLowerCase();
-  return wantedTitle.isNotEmpty &&
-      wantedArtist.isNotEmpty &&
-      wantedTitle == title.trim().toLowerCase() &&
-      wantedArtist == artist.trim().toLowerCase();
-}
+  int? durationSeconds,
+}) => sameCatalogRecording(
+  wantedIsrc: track.isrc,
+  wantedTitle: track.name,
+  wantedArtist: track.artistName,
+  wantedDurationSeconds: track.duration,
+  isrc: isrc,
+  title: title,
+  artist: artist,
+  durationSeconds: durationSeconds,
+);
 
 /// Resolves history candidates without trusting the legacy, unscoped ID.
 Future<DownloadHistoryItem?> findMatchingHistory(

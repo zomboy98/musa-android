@@ -11886,6 +11886,30 @@
   "qualityPickerReplacesFile": "Downloads again and replaces the file",
   "qualityPickerSwitchFailed": "Couldn't switch quality. Keeping the current one.",
   "qualityPickerReplaced": "Download replaced with the new quality",
+  "qualityReplaceDownloadFailed": "Download failed: {cause}",
+  "@qualityReplaceDownloadFailed": {
+    "placeholders": {
+      "cause": {
+        "type": "String"
+      }
+    }
+  },
+  "qualityReplaceDownloadFailedNoCause": "Download failed, the current file was kept",
+  "qualityReplaceCancelled": "Download cancelled, the current file was kept",
+  "qualityReplaceTimedOut": "The download took too long, the current file was kept",
+  "qualityReplaceNoFile": "The download left no file, the current file was kept",
+  "qualityReplaceEmpty": "File rejected: it arrived empty. The current file was kept",
+  "qualityReplaceNoOtherFormat": "The provider has no different format for this song, the current file was kept",
+  "qualityReplaceDuration": "File rejected: its duration does not match the song. The current file was kept",
+  "qualityReplacedReload": "File replaced. The previous audio keeps playing until the song is played again",
+  "qualityReplacedKeptPrevious": "Quality changed, but the previous file could not be deleted",
+  "qualityGuardNotCatalogTrack": "This song is not tied to a catalog entry, so its format cannot be switched live",
+  "qualityGuardIdentityMismatch": "The selected song is not the one playing",
+  "qualityGuardSourceNotReady": "The song is still being prepared, try again in a moment",
+  "qualityGuardCasting": "The format cannot be switched while casting",
+  "qualityGuardDirectMode": "The format cannot be switched in direct USB output",
+  "qualityGuardHandoffRejected": "The new audio could not be aligned with the current position",
+  "qualityGuardOther": "Unknown cause",
   "qualityFormatSpatial": "Spatial audio",
   "qualityFormatSurround": "Surround sound",
   "qualityFormatLossless": "Lossless",
@@ -12117,6 +12141,15 @@
   "@qualityPickerSwitchDetailsCategory": {
     "placeholders": {
       "category": {
+        "type": "String"
+      }
+    }
+  },
+  "qualityPickerFailedLastTime": "Failed last time",
+  "qualityReplaceDetailsTechnical": "Technical detail: {detail}",
+  "@qualityReplaceDetailsTechnical": {
+    "placeholders": {
+      "detail": {
         "type": "String"
       }
     }

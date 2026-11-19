@@ -53,6 +53,7 @@ Future<Set<String>> localFilePathsForTrack(
         isrc: item.isrc,
         title: item.trackName,
         artist: item.artistName,
+        durationSeconds: item.duration,
       )) {
         paths.add(item.filePath);
       }

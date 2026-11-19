@@ -221,7 +221,6 @@ bool _samePermanentTrack(Track a, Track b) {
   final source = a.source?.trim().toLowerCase() ?? '';
   return a.id.trim().isNotEmpty &&
       a.id == b.id &&
-      source.isNotEmpty &&
       source == (b.source?.trim().toLowerCase() ?? '');
 }
 
@@ -4098,14 +4097,16 @@ class MusicPlayerHandler extends BaseAudioHandler
     String qualityId, {
     String? service,
   }) async {
-    final current = currentCatalogTrack;
-    if (current == null ||
-        !_samePermanentTrack(current, track) ||
-        !_sourceReady ||
-        _cast.active ||
-        _player.isDirect) {
-      return const QualitySwitchResult.failed(QualitySwitchFailure.other);
+    final guard = _qualitySwitchGuard(track);
+    if (guard != null) {
+      debugPrint(
+        'quality-switch: guard=${guard.name} index=$_index '
+        'queue=${_media.length} ready=$_sourceReady cast=${_cast.active} '
+        'direct=${_player.isDirect} catalog=${currentCatalogTrack != null}',
+      );
+      return QualitySwitchResult.failed(guard);
     }
+    final current = currentCatalogTrack!;
     final previous = _catalogPlayback.qualityOverrideFor(track);
     final previousService = _catalogPlayback.serviceOverrideFor(track);
     final previousRequest = _catalogPlayback.playingRequest(track);
@@ -4149,6 +4150,7 @@ class MusicPlayerHandler extends BaseAudioHandler
         }
       }
       if (!await switchPlaybackSource(track, lease.path)) {
+        debugPrint('quality-switch: guard=handoffRejected');
         await lease.release();
         _catalogPlayback.setQualityOverride(
           track,
@@ -4156,7 +4158,9 @@ class MusicPlayerHandler extends BaseAudioHandler
           service: previousService,
         );
         _catalogPlayback.restorePlayingRequest(track, previousRequest);
-        return const QualitySwitchResult.failed(QualitySwitchFailure.other);
+        return const QualitySwitchResult.failed(
+          QualitySwitchFailure.handoffRejected,
+        );
       }
       _catalogLease = lease;
       return const QualitySwitchResult.success();
@@ -4179,6 +4183,18 @@ class MusicPlayerHandler extends BaseAudioHandler
             : null,
       );
     }
+  }
+
+  QualitySwitchFailure? _qualitySwitchGuard(Track track) {
+    final current = currentCatalogTrack;
+    if (current == null) return QualitySwitchFailure.notCatalogTrack;
+    if (!_samePermanentTrack(current, track)) {
+      return QualitySwitchFailure.identityMismatch;
+    }
+    if (_cast.active) return QualitySwitchFailure.casting;
+    if (_player.isDirect) return QualitySwitchFailure.directMode;
+    if (!_sourceReady) return QualitySwitchFailure.sourceNotReady;
+    return null;
   }
 
   Future<List<StreamingRequest>> _spatialCandidates(
@@ -4287,9 +4303,12 @@ class MusicPlayerHandler extends BaseAudioHandler
     }
     try {
       if (!await switchPlaybackSource(track, lease.path)) {
+        debugPrint('quality-switch: guard=handoffRejected');
         await lease.release();
         restore();
-        return const QualitySwitchResult.failed(QualitySwitchFailure.other);
+        return const QualitySwitchResult.failed(
+          QualitySwitchFailure.handoffRejected,
+        );
       }
       _catalogLease = lease;
       return const QualitySwitchResult.success();

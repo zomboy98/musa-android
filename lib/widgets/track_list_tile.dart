@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mornye/models/track.dart';
 import 'package:mornye/providers/download_queue_provider.dart';
-import 'package:mornye/providers/local_library_provider.dart';
 import 'package:mornye/providers/music_player_provider.dart';
 import 'package:mornye/providers/settings_provider.dart';
 import 'package:mornye/controllers/clickable_metadata.dart';
@@ -13,6 +12,7 @@ import 'package:mornye/widgets/artists_sheet.dart';
 import 'package:mornye/widgets/tap_target_expander.dart';
 import 'package:mornye/widgets/track_card.dart';
 import 'package:mornye/widgets/downloaded_format_mark.dart';
+import 'package:mornye/widgets/playlist_download_status.dart';
 import 'package:mornye/widgets/track_collection_quick_actions.dart';
 import 'package:mornye/widgets/save_library_track_button.dart';
 
@@ -81,17 +81,14 @@ class TrackListTile extends ConsumerWidget {
         (s) => s.localLibraryEnabled && s.localLibraryShowDuplicates,
       ),
     );
-    final isInLocalLibrary = showLocalLibraryIndicator
-        ? ref.watch(
-            localLibraryProvider.select(
-              (state) => state.existsInLibrary(
-                isrc: track.isrc,
-                trackName: track.name,
-                artistName: track.artistName,
-              ),
-            ),
-          )
-        : false;
+    // A history or library row alone is not proof: the file must still be
+    // there, the same check the download button and the playlists use.
+    final verified = ref.watch(playlistRealDownloadProvider(track));
+    final fileVerified = verified.hasValue ? verified.requireValue : null;
+    final isInLocalLibrary = showLocalLibraryIndicator && fileVerified == true;
+    final showDownloadedMark = fileVerified == null
+        ? isInHistory || isInLocalLibrary
+        : fileVerified && (isInHistory || showLocalLibraryIndicator);
 
     return TrackCard(
       style: TrackCardStyle.flat,
@@ -134,8 +131,8 @@ class TrackListTile extends ConsumerWidget {
             explicit: track.isExplicit,
           ),
         ],
-        trailing: !playlistActions && (isInLocalLibrary || isInHistory)
-            ? DownloadedFormatMark(track: track)
+        trailing: !playlistActions && showDownloadedMark
+            ? DownloadedFormatMark(track: track, removable: true)
             : null,
       ),
       trailing: Row(
@@ -243,15 +240,7 @@ class TrackListTileBadges extends ConsumerWidget {
     );
     final isInLocalLibrary =
         showLocalLibraryIndicator &&
-        ref.watch(
-          localLibraryProvider.select(
-            (state) => state.existsInLibrary(
-              isrc: track.isrc,
-              trackName: track.name,
-              artistName: track.artistName,
-            ),
-          ),
-        );
+        ref.watch(playlistRealDownloadProvider(track)).value == true;
     final badges = [
       ...buildQualityBadges(
         audioQuality: null,

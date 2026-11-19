@@ -6362,6 +6362,30 @@
   "qualityPickerReplacesFile": "Se descarga de nuevo y reemplaza el archivo",
   "qualityPickerSwitchFailed": "No se pudo cambiar la calidad. Se mantiene la actual.",
   "qualityPickerReplaced": "Descarga reemplazada con la nueva calidad",
+  "qualityReplaceDownloadFailed": "Descarga fallida: {cause}",
+  "@qualityReplaceDownloadFailed": {
+    "placeholders": {
+      "cause": {
+        "type": "String"
+      }
+    }
+  },
+  "qualityReplaceDownloadFailedNoCause": "Descarga fallida, se conservó el archivo actual",
+  "qualityReplaceCancelled": "Descarga cancelada, se conservó el archivo actual",
+  "qualityReplaceTimedOut": "La descarga tardó demasiado, se conservó el archivo actual",
+  "qualityReplaceNoFile": "La descarga no dejó archivo, se conservó el archivo actual",
+  "qualityReplaceEmpty": "Archivo rechazado: llegó vacío. Se conservó el archivo actual",
+  "qualityReplaceNoOtherFormat": "El proveedor no tiene un formato distinto para esta canción, se conservó el archivo actual",
+  "qualityReplaceDuration": "Archivo rechazado: su duración no coincide con la canción. Se conservó el archivo actual",
+  "qualityReplacedReload": "Archivo reemplazado. Sigue sonando el audio anterior hasta que vuelvas a reproducir la canción",
+  "qualityReplacedKeptPrevious": "Calidad cambiada, pero no se pudo borrar el archivo anterior",
+  "qualityGuardNotCatalogTrack": "Esta canción no está ligada a una entrada del catálogo, por eso no se puede cambiar el formato en vivo",
+  "qualityGuardIdentityMismatch": "La canción elegida no es la que está sonando",
+  "qualityGuardSourceNotReady": "La canción todavía se está preparando, intenta de nuevo en un momento",
+  "qualityGuardCasting": "No se puede cambiar el formato mientras se transmite a otro dispositivo",
+  "qualityGuardDirectMode": "No se puede cambiar el formato con salida USB directa",
+  "qualityGuardHandoffRejected": "No se pudo alinear el audio nuevo con la posición actual",
+  "qualityGuardOther": "Causa desconocida",
   "qualityFormatSpatial": "Audio espacial",
   "qualityFormatSurround": "Sonido envolvente",
   "qualityFormatLossless": "Sin pérdida",
@@ -6540,6 +6564,15 @@
   "@qualityPickerSwitchDetailsCategory": {
     "placeholders": {
       "category": {
+        "type": "String"
+      }
+    }
+  },
+  "qualityPickerFailedLastTime": "Falló la última vez",
+  "qualityReplaceDetailsTechnical": "Detalle técnico: {detail}",
+  "@qualityReplaceDetailsTechnical": {
+    "placeholders": {
+      "detail": {
         "type": "String"
       }
     }

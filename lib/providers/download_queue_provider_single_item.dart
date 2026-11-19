@@ -670,7 +670,7 @@ class _DownloadRun {
       return;
     }
     if (outcome['error_type']?.toString() == 'quality_unavailable') {
-      registry.markUnavailable(trackToDownload, item.service);
+      registry.noteAttemptFailed(trackToDownload, item.service, quality);
     }
   }
 

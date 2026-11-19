@@ -5,6 +5,7 @@ import 'package:mornye/l10n/app_localizations.dart';
 import 'package:mornye/models/download_history.dart';
 import 'package:mornye/models/track.dart';
 import 'package:mornye/widgets/downloaded_format_mark.dart';
+import 'package:mornye/widgets/playlist_download_status.dart';
 import 'package:mornye/widgets/track_list_tile.dart';
 
 DownloadHistoryItem _item({
@@ -153,8 +154,12 @@ void main() {
 
     Widget row({required bool downloaded, DownloadedFormat? format}) =>
         ProviderScope(
+          key: UniqueKey(),
           overrides: [
             trackDownloadedFormatProvider(track).overrideWithValue(format),
+            playlistRealDownloadProvider(
+              track,
+            ).overrideWith((ref) async => downloaded),
           ],
           child: TrackListTile(
             track: track,

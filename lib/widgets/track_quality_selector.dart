@@ -98,7 +98,7 @@ class _TrackQualitySelectorState extends State<TrackQualitySelector> {
 
   static String _signature(List<TrackQualityChoice> choices) => [
     for (final choice in choices)
-      '${choice.service}|${choice.id}|${choice.available}|${choice.checking}|${choice.current}',
+      '${choice.service}|${choice.id}|${choice.available}|${choice.checking}|${choice.current}|${choice.failedLast}',
   ].join(';');
 
   void _close() {
@@ -1191,6 +1191,8 @@ class _FormatCell extends StatelessWidget {
       for (final line
           in checking ? [_checkingLabel(context)] : [text.first, ?text.second])
         if (line.toLowerCase() != title.toLowerCase()) line,
+      if (choice.failedLast && !checking)
+        context.l10n.qualityPickerFailedLastTime,
     ].join(' · ');
     return Semantics(
       button: true,
