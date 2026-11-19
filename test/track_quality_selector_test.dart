@@ -849,6 +849,162 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  group('the open window updates in place', () {
+    TrackQualityChoice row(
+      String id,
+      QualityBadgeFormat format, {
+      bool checking = false,
+      bool failedLast = false,
+      bool current = false,
+    }) => TrackQualityChoice(
+      id: id,
+      label: id,
+      format: format,
+      kind: 'lossless',
+      checking: checking,
+      failedLast: failedLast,
+      current: current,
+    );
+
+    Widget build(
+      List<TrackQualityChoice> choices, {
+      String key = 'a',
+      List<String>? picked,
+    }) => plainHost(
+      TrackQualitySelector(
+        currentFormat: QualityBadgeFormat.flac,
+        currentLabel: 'FLAC 16-bit',
+        lockup: true,
+        choices: choices,
+        trackKey: key,
+        onSelected: (c) => picked?.add(c.id),
+      ),
+    );
+
+    final panel = find.byKey(const ValueKey('track-quality-panel'));
+    final atmosRow = find.byKey(const ValueKey('quality-choice-ATMOS'));
+
+    Future<void> open(WidgetTester tester, Widget host) async {
+      await tester.pumpWidget(host);
+      await tester.tap(find.byType(TrackQualitySelector));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('checking turns into its final state and the panel stays', (
+      tester,
+    ) async {
+      await open(
+        tester,
+        build([
+          row('LOSSLESS', QualityBadgeFormat.flac, current: true),
+          row('ATMOS', QualityBadgeFormat.spatial, checking: true),
+        ]),
+      );
+      expect(panel, findsOneWidget);
+      expect(find.text('Checking…'), findsOneWidget);
+      await tester.pumpWidget(
+        build([
+          row('LOSSLESS', QualityBadgeFormat.flac, current: true),
+          row('ATMOS', QualityBadgeFormat.spatial),
+        ]),
+      );
+      await tester.pumpAndSettle();
+      expect(panel, findsOneWidget);
+      expect(atmosRow, findsOneWidget);
+      expect(find.text('Checking…'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a failed-last mark appears without closing', (tester) async {
+      await open(
+        tester,
+        build([
+          row('LOSSLESS', QualityBadgeFormat.flac, current: true),
+          row('ATMOS', QualityBadgeFormat.spatial),
+        ]),
+      );
+      await tester.pumpWidget(
+        build([
+          row('LOSSLESS', QualityBadgeFormat.flac, current: true),
+          row('ATMOS', QualityBadgeFormat.spatial, failedLast: true),
+        ]),
+      );
+      await tester.pumpAndSettle();
+      expect(panel, findsOneWidget);
+      expect(find.textContaining('Failed last time'), findsOneWidget);
+    });
+
+    testWidgets('a row that disappears leaves the panel open and shorter', (
+      tester,
+    ) async {
+      await open(
+        tester,
+        build([
+          row('LOSSLESS', QualityBadgeFormat.flac, current: true),
+          row('ATMOS', QualityBadgeFormat.spatial, checking: true),
+          row('HI_RES_LOSSLESS', QualityBadgeFormat.hiRes),
+        ]),
+      );
+      final before = tester.getSize(panel).height;
+      await tester.pumpWidget(
+        build([
+          row('LOSSLESS', QualityBadgeFormat.flac, current: true),
+          row('HI_RES_LOSSLESS', QualityBadgeFormat.hiRes),
+        ]),
+      );
+      await tester.pump(const Duration(milliseconds: 90));
+      expect(tester.takeException(), isNull);
+      await tester.pumpAndSettle();
+      expect(panel, findsOneWidget);
+      expect(atmosRow, findsNothing);
+      expect(tester.getSize(panel).height, lessThan(before));
+      await tester.pumpWidget(
+        build([
+          row('LOSSLESS', QualityBadgeFormat.flac, current: true),
+          row('ATMOS', QualityBadgeFormat.spatial),
+          row('HI_RES_LOSSLESS', QualityBadgeFormat.hiRes),
+        ]),
+      );
+      await tester.pumpAndSettle();
+      expect(panel, findsOneWidget);
+      expect(atmosRow, findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('another song still closes the window', (tester) async {
+      final rows = [
+        row('LOSSLESS', QualityBadgeFormat.flac, current: true),
+        row('ATMOS', QualityBadgeFormat.spatial, checking: true),
+      ];
+      await open(tester, build(rows));
+      await tester.pumpWidget(build(rows, key: 'b'));
+      await tester.pumpAndSettle();
+      expect(panel, findsNothing);
+    });
+
+    testWidgets('the exact log sequence: checking then no atmos', (
+      tester,
+    ) async {
+      final picked = <String>[];
+      final flac = row('LOSSLESS', QualityBadgeFormat.flac, current: true);
+      await open(
+        tester,
+        build([
+          flac,
+          row('ATMOS', QualityBadgeFormat.spatial, checking: true),
+        ], picked: picked),
+      );
+      await tester.tap(atmosRow);
+      await tester.pump();
+      expect(picked, isEmpty);
+      await tester.pumpWidget(build([flac], picked: picked));
+      await tester.pumpAndSettle();
+      expect(panel, findsOneWidget);
+      expect(atmosRow, findsNothing);
+      expect(picked, isEmpty);
+    });
+  });
+
   testWidgets('the window follows the badge when the screen turns', (
     tester,
   ) async {
@@ -1173,7 +1329,8 @@ void main() {
 }
 
 void streamingChoicesTests() {
-  Track song({String? quality, String? modes}) => Track(
+  Track song({String? quality, String? modes, String? source}) => Track(
+    source: source,
     id: 't',
     name: 'n',
     artistName: 'a',
@@ -1195,12 +1352,16 @@ void streamingChoicesTests() {
   test('atmos is offered unless the song is known to lack it', () {
     expect(ids(song()), contains('ATMOS'));
     expect(ids(song(modes: '')), contains('ATMOS'));
-    expect(ids(song(modes: 'STEREO')), isNot(contains('ATMOS')));
+    expect(
+      ids(song(modes: 'STEREO', source: 'tidal-web')),
+      isNot(contains('ATMOS')),
+    );
+    expect(ids(song(modes: 'STEREO')), contains('ATMOS'));
     expect(ids(song(modes: 'DOLBY_ATMOS')), contains('ATMOS'));
     expect(ids(song(modes: 'STEREO,DOLBY_ATMOS')), contains('ATMOS'));
     expect(ids(song(), service: 'amazon'), contains('ATMOS'));
     expect(
-      ids(song(modes: 'STEREO'), service: 'amazon'),
+      ids(song(modes: 'STEREO', source: 'amazon'), service: 'amazon'),
       isNot(contains('ATMOS')),
     );
   });

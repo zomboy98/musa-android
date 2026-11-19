@@ -11,6 +11,9 @@ const int songSearchMergedLimit = 50;
 /// how well the title (and, when the text names one, the artist) matches what
 /// was typed; the provider order (popularity) decides inside each group.
 enum SongMatchTier {
+  /// Song of the artist the text names (see [matchedArtistNames]).
+  artist,
+
   /// Exact title that also matches the artist named in the text.
   titleAndArtist,
 
@@ -25,6 +28,10 @@ enum SongMatchTier {
 
   /// Only the artist, album or the provider's own ranking relates to the text.
   other,
+
+  /// Cover, tribute, karaoke or type beat: matches the text but imitates
+  /// another work, so it goes below everything else.
+  imitation,
 }
 
 /// A text of the form "title de|by|-|x artist".
@@ -171,14 +178,23 @@ List<String> songArtistParts(String artistName) => [
     if (normalizeSearchText(part).isNotEmpty) normalizeSearchText(part),
 ];
 
+final RegExp _imitationMarker = RegExp(
+  r'\b(?:cover|covers|tribute|tributo|homenaje|karaoke|type beat|remake|'
+  r'made famous|originally performed|in the style of)\b',
+  caseSensitive: false,
+);
+
+bool hasImitationMarker(String value) => _imitationMarker.hasMatch(value);
+
 /// What the ranking needs from the typed text, computed once per search.
 class SongQueryProfile {
+  final String query;
   final String normalized;
   final String cleaned;
   final List<String> words;
   final List<({String title, String artist})> splits;
 
-  SongQueryProfile._(this.normalized, this.cleaned, this.words, this.splits);
+  SongQueryProfile._(this.query, this.normalized, this.cleaned, this.words, this.splits);
 
   factory SongQueryProfile(String query) {
     final normalized = normalizeSearchText(query);
@@ -196,6 +212,7 @@ class SongQueryProfile {
       }
     }
     return SongQueryProfile._(
+      query,
       normalized,
       cleanSongTitle(query),
       normalized.isEmpty ? const [] : normalized.split(' '),
@@ -203,10 +220,18 @@ class SongQueryProfile {
     );
   }
 
-  SongMatchTier tierOf(Track track) {
+  SongMatchTier tierOf(Track track, {Set<String> artistNames = const {}}) {
     final title = cleanSongTitle(track.name);
     if (title.isEmpty || normalized.isEmpty) return SongMatchTier.other;
     final artists = songArtistParts(track.artistName);
+    if (artistNames.isNotEmpty && artists.any(artistNames.contains)) {
+      return SongMatchTier.artist;
+    }
+    if (!hasImitationMarker(query) &&
+        (hasImitationMarker(track.name) ||
+            hasImitationMarker(track.albumName))) {
+      return SongMatchTier.imitation;
+    }
 
     for (final split in splits) {
       if (title == split.title &&
@@ -240,6 +265,61 @@ class SongQueryProfile {
   }
 }
 
+/// Artists, among the ones of [songs], that the text names: the text is the
+/// artist's name, or (only for an artist the provider returned as an artist
+/// result, [declaredArtists]) the beginning of it in whole words. Besides the
+/// provider declaring it, the artist needs some weight: [score] above zero
+/// for one of its songs (region popularity or the user's affinity). An
+/// artist that is neither declared nor weighted never outranks a title.
+Set<String> matchedArtistNames(
+  Iterable<Track> songs,
+  String query, {
+  Iterable<String> declaredArtists = const [],
+  double Function(Track track)? score,
+}) {
+  final text = normalizeSearchText(query);
+  if (text.isEmpty) return const {};
+  final declared = {
+    for (final name in declaredArtists)
+      if (normalizeSearchText(name).isNotEmpty) normalizeSearchText(name),
+  };
+  final matched = <String>{};
+  final weighted = <String>{};
+  for (final track in songs) {
+    final points = score?.call(track) ?? 0;
+    for (final artist in songArtistParts(track.artistName)) {
+      final exact = artist == text;
+      final prefix =
+          declared.contains(artist) &&
+          text.length >= 3 &&
+          artist.startsWith('$text ');
+      if (!exact && !prefix) continue;
+      matched.add(artist);
+      if (points > 0) weighted.add(artist);
+    }
+  }
+  return {
+    for (final artist in matched)
+      if (declared.contains(artist) || weighted.contains(artist)) artist,
+  };
+}
+
+/// The artist result the text names: its name equals the text or starts with
+/// it in whole words. Null when none does.
+Track? artistResultNamed(Iterable<Track> artists, String query) {
+  final text = normalizeSearchText(query);
+  if (text.isEmpty) return null;
+  Track? prefix;
+  for (final artist in artists) {
+    final name = normalizeSearchText(artist.name);
+    if (name == text) return artist;
+    if (prefix == null && text.length >= 3 && name.startsWith('$text ')) {
+      prefix = artist;
+    }
+  }
+  return prefix;
+}
+
 String _dedupeKey(Track track) {
   final isrc = track.isrc?.trim();
   if (isrc != null && isrc.isNotEmpty) return 'isrc:${isrc.toUpperCase()}';
@@ -251,21 +331,32 @@ String _dedupeKey(Track track) {
 /// the order is the one of [lists] (first list first, each in provider
 /// order); when [regionalScore] is given, the songs it scores above zero go
 /// first inside their tier, highest score first, and the rest keep the
-/// provider order. The score never moves a song across tiers.
+/// provider order. The score never moves a song across tiers, except that it
+/// can make a named artist count (see [matchedArtistNames]), whose songs lead.
 List<Track> mergeRankedSongs(
   List<List<Track>> lists,
   String query, {
   int maxResults = songSearchMergedLimit,
   double Function(Track track)? regionalScore,
+  Iterable<String> declaredArtists = const [],
 }) {
   final profile = SongQueryProfile(query);
   final seen = <String>{};
-  final buckets = [for (final _ in SongMatchTier.values) <Track>[]];
+  final unique = <Track>[];
   for (final list in lists) {
     for (final track in list) {
-      if (!seen.add(_dedupeKey(track))) continue;
-      buckets[profile.tierOf(track).index].add(track);
+      if (seen.add(_dedupeKey(track))) unique.add(track);
     }
+  }
+  final artistNames = matchedArtistNames(
+    unique,
+    query,
+    declaredArtists: declaredArtists,
+    score: regionalScore,
+  );
+  final buckets = [for (final _ in SongMatchTier.values) <Track>[]];
+  for (final track in unique) {
+    buckets[profile.tierOf(track, artistNames: artistNames).index].add(track);
   }
   final merged = <Track>[];
   for (final bucket in buckets) {

@@ -356,24 +356,34 @@ extension _HomeTabSearchResultsUI on _HomeTabState {
     // Phone results sort from the first section.
     bool sortButtonShown = toolsBesideFilters;
 
-    // Songs always lead the results; collections follow.
-    if (sortedTracks.isNotEmpty) {
-      slivers.addAll(
-        _buildSearchSongRows(
-          resultsRef: resultsRef,
-          tracks: sortedTracks,
-          indexes: sortedTrackIndexes,
-          colorScheme: colorScheme,
-          showSortButton: !sortButtonShown,
-          searchExtensionId: searchExtensionId,
-          showLocalLibraryIndicator: showLocalLibraryIndicator,
-          thumbnailSizesByExtensionId: thumbnailSizesByExtensionId,
-        ),
-      );
-      sortButtonShown = true;
+    // Songs lead the results, unless the text names an artist: then its card
+    // comes first, then its songs.
+    final artistLeads =
+        artistResultNamed(
+          artistItems,
+          _activeSearchInput ?? _urlController.text,
+        ) !=
+        null;
+    void addSongs() {
+      if (sortedTracks.isNotEmpty) {
+        slivers.addAll(
+          _buildSearchSongRows(
+            resultsRef: resultsRef,
+            tracks: sortedTracks,
+            indexes: sortedTrackIndexes,
+            colorScheme: colorScheme,
+            showSortButton: !sortButtonShown,
+            searchExtensionId: searchExtensionId,
+            showLocalLibraryIndicator: showLocalLibraryIndicator,
+            thumbnailSizesByExtensionId: thumbnailSizesByExtensionId,
+          ),
+        );
+        sortButtonShown = true;
+      }
+
     }
 
-    for (final (items, kind, title, open) in [
+    final collectionSections = [
       (
         artistItems,
         'artist',
@@ -392,8 +402,12 @@ extension _HomeTabSearchResultsUI on _HomeTabState {
         context.l10n.searchPlaylists,
         _navigateToExtensionPlaylist,
       ),
-    ]) {
-      if (items.isEmpty) continue;
+    ];
+    void addCollection(
+      (List<Track>, String, String, void Function(Track)) section,
+    ) {
+      final (items, kind, title, open) = section;
+      if (items.isEmpty) return;
       slivers.addAll(
         _buildVirtualizedResultSection(
           title: title,
@@ -410,6 +424,12 @@ extension _HomeTabSearchResultsUI on _HomeTabState {
         ),
       );
       sortButtonShown = true;
+    }
+
+    if (artistLeads) addCollection(collectionSections[0]);
+    addSongs();
+    for (final section in collectionSections.skip(artistLeads ? 1 : 0)) {
+      addCollection(section);
     }
 
     slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 16)));

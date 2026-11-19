@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:mornye/l10n/l10n.dart';
@@ -84,10 +85,19 @@ class _TrackQualitySelectorState extends State<TrackQualitySelector> {
   void didUpdateWidget(TrackQualitySelector old) {
     super.didUpdateWidget(old);
     if (_route == null) return;
-    if (old.trackKey != widget.trackKey ||
-        _signature(old.choices) != _signature(widget.choices)) {
+    if (old.trackKey != widget.trackKey) {
       _close();
+    } else {
+      _refreshWindow();
     }
+  }
+
+  void _refreshWindow() {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _route == null) return;
+      _snapshot.value = _snapshotNow();
+    });
+    SchedulerBinding.instance.ensureVisualUpdate();
   }
 
   @override
@@ -96,10 +106,18 @@ class _TrackQualitySelectorState extends State<TrackQualitySelector> {
     super.dispose();
   }
 
-  static String _signature(List<TrackQualityChoice> choices) => [
-    for (final choice in choices)
-      '${choice.service}|${choice.id}|${choice.available}|${choice.checking}|${choice.current}|${choice.failedLast}',
-  ].join(';');
+  late final _snapshot = ValueNotifier<_QualitySnapshot>(_snapshotNow());
+
+  _QualitySnapshot _snapshotNow() => _QualitySnapshot(
+    choices: _offers,
+    currentLabel: widget.currentLabel,
+    currentMark:
+        widget.currentMark ?? qualityMarkForFormat(widget.currentFormat),
+    requestedNote: widget.requestedNote,
+    noOffersNote: widget.noOffersNote,
+    onShowInfo: widget.onShowInfo,
+    onCancelSwitch: widget.switching ? widget.onCancelSwitch : null,
+  );
 
   void _close() {
     final route = _route;
@@ -127,11 +145,10 @@ class _TrackQualitySelectorState extends State<TrackQualitySelector> {
       _close();
       return;
     }
-    final offers = _offers;
     if (_measure() == null) return;
+    _snapshot.value = _snapshotNow();
     final theme = Theme.of(context);
     final scheme = widget.colorScheme ?? theme.colorScheme;
-    final cancel = widget.switching ? widget.onCancelSwitch : null;
     late final _QualityRoute route;
     route = _QualityRoute(
       label: MaterialLocalizations.of(context).modalBarrierDismissLabel,
@@ -139,18 +156,11 @@ class _TrackQualitySelectorState extends State<TrackQualitySelector> {
         measure: _measure,
         theme: theme,
         scheme: scheme,
-        choices: offers,
-        currentLabel: widget.currentLabel,
-        currentMark:
-            widget.currentMark ?? qualityMarkForFormat(widget.currentFormat),
+        source: _snapshot,
         onRemoved: () {
           if (_route == route) _route = null;
           if (route.isActive) route.navigator?.removeRoute(route);
         },
-        onShowInfo: widget.onShowInfo,
-        onCancelSwitch: cancel,
-        requestedNote: widget.requestedNote,
-        noOffersNote: widget.noOffersNote,
         onSelected: (choice) {
           if (choice.current) {
             widget.onCurrentTapped?.call();
@@ -272,6 +282,26 @@ class _TrackQualitySelectorState extends State<TrackQualitySelector> {
   }
 }
 
+class _QualitySnapshot {
+  const _QualitySnapshot({
+    required this.choices,
+    required this.currentLabel,
+    required this.currentMark,
+    this.requestedNote,
+    this.noOffersNote,
+    this.onShowInfo,
+    this.onCancelSwitch,
+  });
+
+  final List<TrackQualityChoice> choices;
+  final String currentLabel;
+  final QualityMark currentMark;
+  final String? requestedNote;
+  final String? noOffersNote;
+  final VoidCallback? onShowInfo;
+  final VoidCallback? onCancelSwitch;
+}
+
 class _QualityRoute extends PopupRoute<void> {
   _QualityRoute({required this.builder, required this.label});
 
@@ -363,6 +393,7 @@ const _popoverGap = 8.0;
 const _popoverMargin = 12.0;
 const _enterDuration = Duration(milliseconds: 200);
 const _exitDuration = Duration(milliseconds: 160);
+const _resizeDuration = Duration(milliseconds: 180);
 const _confirmDuration = Duration(milliseconds: 140);
 const _startScale = 0.92;
 
@@ -418,30 +449,17 @@ class _QualityWindow extends StatefulWidget {
     required this.measure,
     required this.theme,
     required this.scheme,
-    required this.choices,
-    required this.currentLabel,
-    required this.currentMark,
+    required this.source,
     required this.onRemoved,
     required this.onSelected,
-    this.onShowInfo,
-    this.onCancelSwitch,
-    this.requestedNote,
-    this.noOffersNote,
   });
 
-  final String currentLabel;
-  final QualityMark currentMark;
-
-  final String? requestedNote;
-  final String? noOffersNote;
+  final ValueListenable<_QualitySnapshot> source;
   final Rect? Function() measure;
   final ThemeData theme;
   final ColorScheme scheme;
-  final List<TrackQualityChoice> choices;
   final VoidCallback onRemoved;
   final ValueChanged<TrackQualityChoice> onSelected;
-  final VoidCallback? onShowInfo;
-  final VoidCallback? onCancelSwitch;
 
   @override
   State<_QualityWindow> createState() => _QualityWindowState();
@@ -449,13 +467,15 @@ class _QualityWindow extends StatefulWidget {
 
 class _QualityWindowState extends State<_QualityWindow>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
-  late final List<_QualityEntry> _entries = _entriesFor(widget.choices);
+  late _QualitySnapshot _data = widget.source.value;
+  late List<_QualityEntry> _entries = _entriesFor(_data.choices);
   late final _PopoverMotion _motion = _PopoverMotion(this);
   late Rect _anchor = widget.measure() ?? Rect.zero;
   final _groupKeys = <QualityMark, GlobalKey>{};
   final _subKey = GlobalKey<_QualityGroupMenuState>();
   Rect? _subCell;
-  List<TrackQualityChoice> _subChoices = const [];
+  QualityMark? _subMark;
+  bool? _opensDown;
   String? _confirmed;
   bool _leaving = false;
   bool _started = false;
@@ -464,6 +484,22 @@ class _QualityWindowState extends State<_QualityWindow>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    widget.source.addListener(_sourceChanged);
+  }
+
+  void _sourceChanged() {
+    if (!mounted || _leaving) return;
+    final data = widget.source.value;
+    setState(() {
+      _data = data;
+      _entries = _entriesFor(data.choices);
+      final mark = _subMark;
+      if (mark != null &&
+          !_entries.any((e) => e.isGroup && e.choice.mark == mark)) {
+        _subMark = null;
+        _subCell = null;
+      }
+    });
   }
 
   @override
@@ -485,6 +521,7 @@ class _QualityWindowState extends State<_QualityWindow>
         setState(() {
           _anchor = anchor;
           _subCell = null;
+          _opensDown = null;
         });
       }
     });
@@ -492,6 +529,7 @@ class _QualityWindowState extends State<_QualityWindow>
 
   @override
   void dispose() {
+    widget.source.removeListener(_sourceChanged);
     WidgetsBinding.instance.removeObserver(this);
     _motion.dispose();
     super.dispose();
@@ -507,6 +545,10 @@ class _QualityWindowState extends State<_QualityWindow>
 
   Future<void> _pick(TrackQualityChoice choice) async {
     if (_leaving || _confirmed != null) return;
+    final stillOffered = _data.choices.any(
+      (c) => c.id == choice.id && c.service == choice.service,
+    );
+    if (!stillOffered) return;
     final reduce = MediaQuery.disableAnimationsOf(context);
     widget.onSelected(choice);
     if (!mounted) return;
@@ -522,7 +564,7 @@ class _QualityWindowState extends State<_QualityWindow>
             as RenderBox?;
     if (box == null || !box.attached || !box.hasSize) return;
     setState(() {
-      _subChoices = entry.group;
+      _subMark = entry.choice.mark;
       _subCell = box.localToGlobal(Offset.zero) & box.size;
     });
   }
@@ -544,6 +586,13 @@ class _QualityWindowState extends State<_QualityWindow>
     }
   }
 
+  List<TrackQualityChoice> get _subGroup {
+    for (final entry in _entries) {
+      if (entry.isGroup && entry.choice.mark == _subMark) return entry.group;
+    }
+    return const [];
+  }
+
   Widget _onlyCurrent(Color fg, AppLocalizations l10n) {
     return Padding(
       key: const ValueKey('track-quality-only-current'),
@@ -554,16 +603,16 @@ class _QualityWindowState extends State<_QualityWindow>
           Row(
             children: [
               QualityBadgeArt(
-                format: qualityFormatForMark(widget.currentMark),
-                mark: widget.currentMark,
+                format: qualityFormatForMark(_data.currentMark),
+                mark: _data.currentMark,
                 size: 22,
                 color: fg,
-                semanticLabel: widget.currentLabel,
+                semanticLabel: _data.currentLabel,
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  widget.currentLabel,
+                  _data.currentLabel,
                   style: TextStyle(
                     color: fg,
                     fontSize: 14,
@@ -575,7 +624,7 @@ class _QualityWindowState extends State<_QualityWindow>
           ),
           const SizedBox(height: 8),
           Text(
-            widget.noOffersNote ?? l10n.qualityPickerNoOtherQualities,
+            _data.noOffersNote ?? l10n.qualityPickerNoOtherQualities,
             style: TextStyle(
               color: fg.withValues(alpha: _softText),
               fontSize: 12,
@@ -612,6 +661,7 @@ class _QualityWindowState extends State<_QualityWindow>
       );
     }
     return _FormatCell(
+      key: ValueKey('cell|${entry.choice.service}|${entry.choice.id}'),
       choice: entry.choice,
       scheme: scheme,
       current: entry.choice.current || _confirmed == entry.choice.id,
@@ -646,7 +696,7 @@ class _QualityWindowState extends State<_QualityWindow>
     final below = size.height - padding.bottom - anchor.bottom - _popoverGap;
     final above = anchor.top - padding.top - _popoverGap;
     final need = _headerHeight + math.max(_entries.length, 1) * _rowHeight + 12;
-    final opensDown = below >= need || below >= above;
+    final opensDown = _opensDown ??= below >= need || below >= above;
     final room = (opensDown ? below : above) - _popoverMargin;
     final maxHeight = math.max(
       _rowHeight + _headerHeight,
@@ -693,12 +743,12 @@ class _QualityWindowState extends State<_QualityWindow>
                 ),
               ),
             ),
-            if (widget.onShowInfo != null)
+            if (_data.onShowInfo != null)
               Tooltip(
                 message: l10n.audioInfoTitle,
                 child: IconButton(
                   key: const ValueKey('track-quality-info'),
-                  onPressed: () => _dismiss(widget.onShowInfo),
+                  onPressed: () => _dismiss(_data.onShowInfo),
                   iconSize: 20,
                   color: fg.withValues(alpha: _softText),
                   icon: const Icon(Icons.info_outline_rounded),
@@ -717,33 +767,40 @@ class _QualityWindowState extends State<_QualityWindow>
           child: _FadingScroll(
             child: SingleChildScrollView(
               padding: const EdgeInsets.only(bottom: 8),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (widget.onCancelSwitch != null)
-                    Align(
-                      alignment: AlignmentDirectional.centerEnd,
-                      child: TextButton.icon(
-                        key: const ValueKey('track-quality-cancel'),
-                        onPressed: () => _dismiss(widget.onCancelSwitch),
-                        icon: const Icon(Icons.close_rounded, size: 18),
-                        label: Text(l10n.qualityPickerCancelSwitch),
-                      ),
-                    ),
-                  ...rows,
-                  if (widget.requestedNote != null)
-                    Padding(
-                      key: const ValueKey('track-quality-requested-note'),
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 2),
-                      child: Text(
-                        widget.requestedNote!,
-                        style: TextStyle(
-                          color: fg.withValues(alpha: _softText),
-                          fontSize: 12,
+              child: AnimatedSize(
+                duration: _resizeDuration,
+                curve: Curves.easeOutCubic,
+                alignment: opensDown
+                    ? Alignment.topCenter
+                    : Alignment.bottomCenter,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_data.onCancelSwitch != null)
+                      Align(
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: TextButton.icon(
+                          key: const ValueKey('track-quality-cancel'),
+                          onPressed: () => _dismiss(_data.onCancelSwitch),
+                          icon: const Icon(Icons.close_rounded, size: 18),
+                          label: Text(l10n.qualityPickerCancelSwitch),
                         ),
                       ),
-                    ),
-                ],
+                    ...rows,
+                    if (_data.requestedNote != null)
+                      Padding(
+                        key: const ValueKey('track-quality-requested-note'),
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 2),
+                        child: Text(
+                          _data.requestedNote!,
+                          style: TextStyle(
+                            color: fg.withValues(alpha: _softText),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -805,7 +862,7 @@ class _QualityWindowState extends State<_QualityWindow>
                     child: _QualityGroupMenu(
                       key: _subKey,
                       cell: _subCell!,
-                      choices: _subChoices,
+                      choices: _subGroup,
                       scheme: scheme,
                       onClosed: () {
                         if (mounted) setState(() => _subCell = null);
@@ -1135,9 +1192,13 @@ class _QualityGroupRow extends StatelessWidget {
   }
 }
 
-String _rowTitle(BuildContext context, QualityMark mark, String fallback) =>
-    switch (mark) {
-      QualityMark.atmos => 'Atmos',
+String _rowTitle(
+  BuildContext context,
+  QualityMark mark,
+  String fallback, {
+  String? codec,
+}) => switch (mark) {
+      QualityMark.atmos => codec == null ? 'Atmos' : 'Atmos $codec',
       QualityMark.max => 'Max',
       QualityMark.hiRes => 'Hi-Res',
       QualityMark.dolbyPlus => 'Dolby Digital Plus',
@@ -1182,7 +1243,12 @@ class _FormatCell extends StatelessWidget {
     final isCurrent = current ?? choice.current;
     final checking = choice.checking;
     final fg = scheme.onSurface;
-    final title = _rowTitle(context, choice.mark, text.name);
+    final title = _rowTitle(
+      context,
+      choice.mark,
+      text.name,
+      codec: choice.spatialCodec,
+    );
     final description = [
       for (final line
           in checking ? [_checkingLabel(context)] : [text.first, ?text.second])
@@ -1197,7 +1263,8 @@ class _FormatCell extends StatelessWidget {
       value: isCurrent ? context.l10n.qualityPickerCurrent : null,
       excludeSemantics: true,
       onTap: checking ? null : onTap,
-      child: Opacity(
+      child: AnimatedOpacity(
+        duration: _resizeDuration,
         opacity: checking ? 0.55 : 1,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),

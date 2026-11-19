@@ -459,7 +459,8 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen>
       artistId:
           (data['artist_id'] ?? data['artistId'])?.toString() ?? _artistId,
       albumId: data['album_id']?.toString() ?? widget.albumId,
-      coverUrl: normalizeCoverReference(data['images']?.toString()),
+      coverUrl:
+          normalizeCoverReference(data['images']?.toString()) ?? widget.coverUrl,
       isrc: data['isrc'] as String?,
       duration: ((data['duration_ms'] as int? ?? 0) / 1000).round(),
       trackNumber: data['track_number'] as int?,

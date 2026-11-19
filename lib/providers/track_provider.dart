@@ -8,10 +8,16 @@ import 'package:mornye/services/platform_bridge.dart';
 import 'package:mornye/services/listening_statistics.dart';
 import 'package:mornye/services/regional_song_signal.dart';
 import 'package:mornye/services/search_taste_profile.dart';
+import 'package:mornye/controllers/local_playback.dart';
+import 'package:mornye/models/library_database_models.dart';
+import 'package:mornye/providers/download_history_provider.dart';
+import 'package:mornye/providers/local_library_provider.dart';
+import 'package:mornye/services/download_file_inventory.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mornye/providers/library_collections_provider.dart';
 import 'package:mornye/providers/library_mixes_provider.dart';
 import 'package:mornye/services/search_region.dart';
+import 'package:mornye/services/search_result_classifier.dart';
 import 'package:mornye/services/song_search_ranking.dart';
 import 'package:mornye/utils/isrc_utils.dart';
 import 'package:mornye/utils/logger.dart';
@@ -22,6 +28,14 @@ import 'package:mornye/providers/settings_provider.dart';
 import 'package:mornye/providers/extension_provider.dart';
 
 final _log = AppLogger('TrackProvider');
+/// Songs of the artist named by the text below which a search also asks the
+/// provider for the artist's top tracks.
+const int artistSongsWanted = 5;
+
+const Duration localSongSignalTimeout = Duration(milliseconds: 1500);
+
+const Duration artistTopTracksTimeout = Duration(seconds: 4);
+
 const _extensionInitRetryTimeout = Duration(seconds: 30);
 
 class TrackState {
@@ -670,9 +684,9 @@ class TrackNotifier extends Notifier<TrackState> {
     if (extraQueries.isEmpty) {
       final primaryTracks = _parseSearchTracks(await primary, extensionId);
       if (!wantsSongs || !isPlainSongQuery(query)) return primaryTracks;
-      return _rankSongs(
+      return await _rankSongs(
         primaryTracks,
-        const [],
+        await _artistExtraSongs(extensionId, query, primaryTracks),
         query,
         await signalFuture,
         await tasteFuture,
@@ -709,9 +723,16 @@ class TrackNotifier extends Notifier<TrackState> {
     if (primaryTracks == null && extraTracks.isEmpty) {
       Error.throwWithStackTrace(primaryError!, primaryStack!);
     }
-    return _rankSongs(
+    return await _rankSongs(
       primaryTracks ?? const [],
-      extraTracks,
+      [
+        ...extraTracks,
+        ...await _artistExtraSongs(
+          extensionId,
+          query,
+          primaryTracks ?? const [],
+        ),
+      ],
       query,
       await signalFuture,
       await tasteFuture,
@@ -810,28 +831,166 @@ class TrackNotifier extends Notifier<TrackState> {
     }
   }
 
-  List<Track> _rankSongs(
+  /// Songs of the artist the text names when the plain results hold fewer
+  /// than [artistSongsWanted] of them: the artist's top tracks, asked once
+  /// through the provider's artist link, never waiting more than
+  /// [artistTopTracksTimeout]. Empty when no artist result is named, the
+  /// provider has no known link, or the request fails.
+  Future<List<List<Track>>> _artistExtraSongs(
+    String extensionId,
+    String query,
+    List<Track> primary,
+  ) async {
+    if (!isPlainSongQuery(query)) return const [];
+    final artist = artistResultNamed([
+      for (final track in primary)
+        if (track.isArtistItem) track,
+    ], query);
+    if (artist == null || artist.id.isEmpty) return const [];
+    final name = normalizeSearchText(artist.name);
+    final known = primary.where(
+      (track) =>
+          !track.isCollection && songArtistParts(track.artistName).contains(name),
+    );
+    if (known.length >= artistSongsWanted) return const [];
+    final url = switch (extensionId.trim().toLowerCase()) {
+      'spotify' => 'https://open.spotify.com/artist/${artist.id}',
+      'deezer' => 'https://www.deezer.com/artist/${artist.id}',
+      _ => null,
+    };
+    if (url == null) return const [];
+    try {
+      final result = await PlatformBridge.handleURLWithExtension(
+        url,
+      ).timeout(artistTopTracksTimeout);
+      final rows =
+          (result?['artist'] as Map<String, dynamic>?)?['top_tracks']
+              as List<dynamic>? ??
+          const [];
+      return [
+        [
+          for (final row in rows)
+            if (row is Map<String, dynamic>)
+              Track.fromBackendMap(row, source: extensionId),
+        ],
+      ];
+    } catch (e) {
+      _log.w('Artist top tracks for search skipped: $e');
+      return const [];
+    }
+  }
+
+  /// The songs of this search that are already on the device (download
+  /// history, inventory or scanned library), checked in batch against local
+  /// data only. Empty when nothing answers in time.
+  Future<LocalSongSignal> _localSongSignal(List<Track> songs) async {
+    if (songs.isEmpty) return LocalSongSignal.empty;
+    try {
+      return await _readLocalSongSignal(songs).timeout(localSongSignalTimeout);
+    } catch (e) {
+      _log.w('Local song signal skipped: $e');
+      return LocalSongSignal.empty;
+    }
+  }
+
+  Future<LocalSongSignal> _readLocalSongSignal(List<Track> songs) async {
+    final candidates = songs.take(songSearchMergedLimit * 2).toList();
+    final paths = [for (final _ in candidates) <String>{}];
+    final inventory = await DownloadFileInventory.candidatePathsBatch(
+      candidates,
+    );
+    final library = await ref
+        .read(localLibraryProvider.notifier)
+        .findTrackCandidatesBatch([
+          for (final track in candidates)
+            LocalLibraryBatchLookupRequest(
+              isrc: track.isrc,
+              trackName: track.name,
+              artistName: track.artistName,
+            ),
+        ]);
+    final history = ref.read(downloadHistoryProvider.notifier);
+    for (var i = 0; i < candidates.length; i++) {
+      final track = candidates[i];
+      paths[i].addAll(inventory[i]);
+      for (final item in library[i]) {
+        if (matchesCatalogIdentity(
+          track,
+          isrc: item.isrc,
+          title: item.trackName,
+          artist: item.artistName,
+          durationSeconds: item.duration,
+        )) {
+          paths[i].add(item.filePath);
+        }
+      }
+    }
+    final histories = await Future.wait([
+      for (final track in candidates)
+        history.findTrackCandidatesAsync(historyLookupForTrack(track)),
+    ]);
+    for (var i = 0; i < candidates.length; i++) {
+      for (final item in histories[i]) {
+        if (historyMatchesTrack(candidates[i], item)) {
+          paths[i].add(item.filePath);
+        }
+      }
+    }
+    final presence = await ref
+        .read(historyFilePresenceProvider.notifier)
+        .verify([for (final set in paths) ...set]);
+    return LocalSongSignal([
+      for (var i = 0; i < candidates.length; i++)
+        if (paths[i].any(
+          (path) =>
+              path.isNotEmpty &&
+              !path.startsWith('network://') &&
+              presence[path] == true,
+        ))
+          candidates[i],
+    ]);
+  }
+
+  Future<List<Track>> _rankSongs(
     List<Track> primary,
     List<List<Track>> extras,
     String query,
     RegionalSongSignal? signal,
     SearchTasteProfile taste,
-  ) {
+  ) async {
     final songs = <Track>[];
     final collections = <Track>[];
     for (final track in primary) {
       (track.isCollection ? collections : songs).add(track);
     }
-    return [
-      ...mergeRankedSongs([
-        songs,
-        for (final extra in extras) [
+    final extraSongs = [
+      for (final extra in extras)
+        [
           for (final track in extra)
             if (!track.isCollection) track,
         ],
-      ], query, regionalScore: signal == null && taste.isEmpty
-          ? null
-          : (track) => (signal?.scoreOf(track) ?? 0) + taste.scoreOf(track)),
+    ];
+    final local = !ref.read(settingsProvider).personalizeSearchResults
+        ? LocalSongSignal.empty
+        : await _localSongSignal([
+          ...songs,
+          for (final extra in extraSongs) ...extra,
+        ]);
+    return [
+      ...mergeRankedSongs(
+        [songs, ...extraSongs],
+        query,
+        declaredArtists: [
+          for (final track in primary)
+            if (track.isArtistItem) track.name,
+        ],
+        regionalScore: signal == null && taste.isEmpty && local.isEmpty
+            ? null
+            : (track) =>
+                  (signal?.scoreOf(track) ?? 0) +
+                  taste.scoreOf(track) +
+                  local.scoreOf(track),
+      ),
       ...collections,
     ];
   }

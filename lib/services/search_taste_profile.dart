@@ -90,3 +90,46 @@ class SearchTasteProfile {
     return points;
   }
 }
+
+/// Points of a song the user already has downloaded or in their library:
+/// above any regional or listening score, so it leads its group.
+const double searchLocalSongPoints = 100.0;
+
+/// Points of a song whose artist has songs the user already has locally.
+const double searchLocalArtistPoints = 20.0;
+
+/// Which of the songs of one search the user already has on the device.
+class LocalSongSignal {
+  final Set<String> _songs;
+  final Set<String> _artists;
+
+  LocalSongSignal._(this._songs, this._artists);
+
+  static final LocalSongSignal empty = LocalSongSignal._(const {}, const {});
+
+  static String songKey(Track track) {
+    final isrc = track.isrc?.trim().toUpperCase();
+    if (isrc != null && isrc.isNotEmpty) return 'isrc:$isrc';
+    return 'id:${track.source ?? ''}:${track.id}';
+  }
+
+  factory LocalSongSignal(Iterable<Track> localSongs) {
+    final songs = <String>{};
+    final artists = <String>{};
+    for (final track in localSongs) {
+      songs.add(songKey(track));
+      artists.addAll(songArtistParts(track.artistName));
+    }
+    return LocalSongSignal._(songs, artists);
+  }
+
+  bool get isEmpty => _songs.isEmpty;
+
+  double scoreOf(Track track) {
+    if (isEmpty) return 0;
+    if (_songs.contains(songKey(track))) return searchLocalSongPoints;
+    return songArtistParts(track.artistName).any(_artists.contains)
+        ? searchLocalArtistPoints
+        : 0;
+  }
+}

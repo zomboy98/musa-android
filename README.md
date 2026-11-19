@@ -1,6 +1,6 @@
 # MUSA
 
-Reproductor de música para Android (Flutter, Kotlin y Rust). Versión beta pública 0.9 (beta 5).
+Reproductor de música para Android (Flutter, Kotlin y Rust). Versión beta pública 0.9 (beta 6).
 
 
 ## Licencia

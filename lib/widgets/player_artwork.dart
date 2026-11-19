@@ -1,5 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart'
+    show BaseCacheManager;
 import 'package:mornye/services/cover_cache_manager.dart';
 import 'package:mornye/widgets/app_icon.dart';
 import 'package:mornye/widgets/cached_cover_image.dart';
@@ -19,6 +21,13 @@ class PlayerArtwork extends StatelessWidget {
   /// Paints the whole cover through [CoverImageFrame] instead of cropping it.
   final bool complete;
 
+  /// Shown instead of the placeholder when an online [artUri] fails to load,
+  /// such as the file's own embedded cover.
+  final String? fallbackUri;
+
+  @visibleForTesting
+  final BaseCacheManager? cacheManager;
+
   const PlayerArtwork({
     super.key,
     required this.artUri,
@@ -26,6 +35,8 @@ class PlayerArtwork extends StatelessWidget {
     this.cacheWidth,
     this.iconSize = 40,
     this.complete = false,
+    this.fallbackUri,
+    this.cacheManager,
   });
 
   /// Share one full-size decode while artwork moves between player panels.
@@ -47,22 +58,33 @@ class PlayerArtwork extends StatelessWidget {
 
     final uri = artUri;
     if (isHttpCoverUrl(uri)) {
+      final fallback = fallbackUri;
+      final onError = fallback == null || fallback.isEmpty
+          ? placeholder
+          : PlayerArtwork(
+              artUri: fallback,
+              colorScheme: colorScheme,
+              cacheWidth: cacheWidth,
+              iconSize: iconSize,
+              complete: complete,
+              cacheManager: cacheManager,
+            );
       return CachedNetworkImage(
         imageUrl: uri!,
         fit: BoxFit.cover,
         imageBuilder: complete
             ? (_, provider) => CoverImageFrame(
                 image: provider,
-                errorBuilder: (_, _, _) => placeholder,
+                errorBuilder: (_, _, _) => onError,
               )
             : null,
-        cacheManager: CoverCacheManager.instance,
+        cacheManager: cacheManager ?? CoverCacheManager.instance,
         memCacheWidth: cacheWidth,
         fadeInDuration: Duration.zero,
         fadeOutDuration: const Duration(milliseconds: 0),
         useOldImageOnUrlChange: true,
         placeholder: (_, _) => placeholder,
-        errorWidget: (_, _, _) => placeholder,
+        errorWidget: (_, _, _) => onError,
       );
     }
     final image = coverImageProvider(uri, cacheWidth: cacheWidth);

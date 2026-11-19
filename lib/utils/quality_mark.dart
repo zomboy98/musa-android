@@ -42,6 +42,14 @@ final _ac4Text = RegExp(r'(^|[^a-z])ac-?4');
 bool isDolbyMark(QualityMark mark) =>
     mark == QualityMark.atmos || mark == QualityMark.dolbyPlus;
 
+/// The Dolby codec behind a spatial row, so Atmos over AC-4, Atmos over
+/// E-AC-3 JOC and plain Dolby Digital Plus stay three different formats.
+String? spatialCodecLabelFor(QualityMark mark, String id, [String label = '']) {
+  if (mark == QualityMark.dolbyPlus) return 'E-AC-3';
+  if (mark != QualityMark.atmos) return null;
+  return _ac4Text.hasMatch(_words(id, label)) ? 'AC-4' : 'E-AC-3 JOC';
+}
+
 QualityMark qualityMarkFor(String id, [String label = '', String kind = '']) {
   final text = _words(id, label);
   final k = kind.trim().toLowerCase();

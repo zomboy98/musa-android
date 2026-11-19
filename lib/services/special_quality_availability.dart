@@ -12,7 +12,13 @@ import 'package:mornye/utils/quality_mark.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-enum SpecialQualityStatus { confirmed, checking, unavailable, unknown }
+enum SpecialQualityStatus {
+  confirmed,
+  checking,
+  unavailable,
+  unconfirmed,
+  unknown,
+}
 
 const _confirmedTtl = Duration(days: 90);
 const _unavailableTtl = Duration(days: 30);
@@ -80,6 +86,7 @@ class SpecialQualityAvailability extends ChangeNotifier {
   final Map<String, ({bool confirmed, DateTime checkedAt})> _learned = {};
   final Set<String> _probing = {};
   final Set<String> _probedWithoutProof = {};
+  final Set<String> _probedNegative = {};
   final Map<String, DateTime> _probeFailedAt = {};
   final Map<String, DateTime> _attemptFailedAt = {};
   Future<void>? _loading;
@@ -181,7 +188,13 @@ class SpecialQualityAvailability extends ChangeNotifier {
     final belongs = provider == null || _metadataBelongsTo(track, provider);
     if (belongs && track.isDolbyAtmos) return SpecialQualityStatus.confirmed;
     final modes = track.audioModes?.trim() ?? '';
-    if (belongs && modes.isNotEmpty) return SpecialQualityStatus.unavailable;
+    final declaredBy = normalizeAvailabilityProvider(track.source);
+    if (belongs &&
+        modes.isNotEmpty &&
+        declaredBy != null &&
+        declaredBy == provider) {
+      return SpecialQualityStatus.unavailable;
+    }
     if (provider == null || !probeEnabled || !probeEligible(track, service)) {
       return SpecialQualityStatus.unknown;
     }
@@ -189,6 +202,9 @@ class SpecialQualityAvailability extends ChangeNotifier {
     if (id == null) return SpecialQualityStatus.unknown;
     final probeKey = '$provider|$id';
     if (_probing.contains(probeKey)) return SpecialQualityStatus.checking;
+    if (_probedNegative.contains(probeKey)) {
+      return SpecialQualityStatus.unconfirmed;
+    }
     if (_probedWithoutProof.contains(probeKey)) {
       return SpecialQualityStatus.unknown;
     }
@@ -202,10 +218,7 @@ class SpecialQualityAvailability extends ChangeNotifier {
     return SpecialQualityStatus.checking;
   }
 
-  Future<Map<String, dynamic>> _gatedLoad(
-    String providerId,
-    String nativeId,
-  ) {
+  Future<Map<String, dynamic>> _gatedLoad(String providerId, String nativeId) {
     final cancel = Completer<void>();
     final timer = Timer(_probeQueueWait + _probeTimeout, () {
       if (!cancel.isCompleted) cancel.complete();
@@ -259,6 +272,9 @@ class SpecialQualityAvailability extends ChangeNotifier {
         _record(track, provider, confirmed: false);
       } else {
         _probedWithoutProof.add(probeKey);
+        if (_sameNativeId(data['id']?.toString(), nativeId)) {
+          _probedNegative.add(probeKey);
+        }
       }
       policy?.recordSuccess(providerId, id);
     } on Object {

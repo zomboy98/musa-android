@@ -26,6 +26,7 @@ class PlayableMedia {
   final String? albumType;
   final String? artUri;
   final String? networkArtworkSource;
+  final bool contextCover;
   final Duration? duration;
   final int? bitDepth;
   final int? sampleRate;
@@ -49,6 +50,7 @@ class PlayableMedia {
     this.albumType,
     this.artUri,
     this.networkArtworkSource,
+    this.contextCover = false,
     this.duration,
     this.bitDepth,
     this.sampleRate,
@@ -98,6 +100,7 @@ class PlayableMedia {
       'artUri': artUri,
     if (networkArtworkSource != null)
       'networkArtworkSource': networkArtworkSource,
+    if (contextCover) 'contextCover': true,
     if (duration != null) 'durationMs': duration!.inMilliseconds,
     if (bitDepth != null && bitDepth! > 0) 'bitDepth': bitDepth,
     if (sampleRate != null && sampleRate! > 0) 'sampleRate': sampleRate,
@@ -145,6 +148,7 @@ class PlayableMedia {
       albumType: json['albumType'] as String?,
       artUri: artwork,
       networkArtworkSource: json['networkArtworkSource'] as String?,
+      contextCover: json['contextCover'] == true,
       duration: (durationMs != null && durationMs > 0)
           ? Duration(milliseconds: durationMs)
           : null,
@@ -265,6 +269,7 @@ PlayableMedia playableFromTrack(
     album: track.albumName,
     albumId: track.albumId,
     albumType: track.albumType,
+    contextCover: cover.trim().startsWith('http'),
     artUri: !CoverStore.fetches(cover)
         ? normalizeArtUri(cover)
         : path.startsWith('network://')

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mornye/l10n/l10n.dart';
+import 'package:mornye/l10n/app_localizations_es.dart';
 import 'package:mornye/models/extension.dart';
 import 'package:mornye/models/settings.dart';
 import 'package:mornye/models/track.dart';
@@ -230,10 +231,7 @@ void main() {
       (service: 'amazon', options: _options),
     ];
 
-    List<String> listed(
-      SpecialQualityAvailability registry,
-      Track track,
-    ) => [
+    List<String> listed(SpecialQualityAvailability registry, Track track) => [
       for (final c in mergeProviderQualityChoices(
         providers,
         track: track,
@@ -263,17 +261,20 @@ void main() {
       expect(after.every((c) => c.available && c.failedLast), isTrue);
     });
 
-    test('a download failure that says quality unavailable does not hide it', () {
-      final r = _offline();
-      final t = _track(isrc: 'USABC1234567');
-      r.recordPlayback(
-        track: t,
-        requestedService: 'amazon',
-        requestedQuality: 'DOLBY_ATMOS',
-        metadata: _lease(codec: 'opus', provider: 'amazon'),
-      );
-      expect(listed(r, t), contains('amazon/DOLBY_ATMOS'));
-    });
+    test(
+      'a download failure that says quality unavailable does not hide it',
+      () {
+        final r = _offline();
+        final t = _track(isrc: 'USABC1234567');
+        r.recordPlayback(
+          track: t,
+          requestedService: 'amazon',
+          requestedQuality: 'DOLBY_ATMOS',
+          metadata: _lease(codec: 'opus', provider: 'amazon'),
+        );
+        expect(listed(r, t), contains('amazon/DOLBY_ATMOS'));
+      },
+    );
 
     test('a later success clears the mark', () {
       final r = _offline();
@@ -285,7 +286,11 @@ void main() {
 
     test('rules already hidden by catalog data are still reported', () {
       final r = _offline();
-      final t = _track(isrc: 'USABC1234567', modes: 'STEREO', source: 'tidal-web');
+      final t = _track(
+        isrc: 'USABC1234567',
+        modes: 'STEREO',
+        source: 'tidal-web',
+      );
       final hidden = <String>[];
       mergeProviderQualityChoices(
         providers,
@@ -299,19 +304,22 @@ void main() {
   });
 
   group('persistence', () {
-    test('an unavailable verdict saved by a failed attempt is ignored', () async {
-      final dir = await Directory.systemTemp.createTemp('availability');
-      addTearDown(() => dir.delete(recursive: true));
-      final clock = _Clock();
-      final t = _track(isrc: 'AAAAAAAAAAAA');
-      File('${dir.path}/special_quality_availability.json').writeAsStringSync(
-        '{"tidal|AAAAAAAAAAAA":{"atmos":"unavailable","checkedAt":'
-        '"${clock.now.toIso8601String()}"}}',
-      );
-      final r = _offline(clock: clock, dir: dir);
-      await r.ensureLoaded();
-      expect(r.atmosStatus(t, 'tidal-web'), SpecialQualityStatus.unknown);
-    });
+    test(
+      'an unavailable verdict saved by a failed attempt is ignored',
+      () async {
+        final dir = await Directory.systemTemp.createTemp('availability');
+        addTearDown(() => dir.delete(recursive: true));
+        final clock = _Clock();
+        final t = _track(isrc: 'AAAAAAAAAAAA');
+        File('${dir.path}/special_quality_availability.json').writeAsStringSync(
+          '{"tidal|AAAAAAAAAAAA":{"atmos":"unavailable","checkedAt":'
+          '"${clock.now.toIso8601String()}"}}',
+        );
+        final r = _offline(clock: clock, dir: dir);
+        await r.ensureLoaded();
+        expect(r.atmosStatus(t, 'tidal-web'), SpecialQualityStatus.unknown);
+      },
+    );
 
     test('saves and reads back from disk, dropping expired entries', () async {
       final dir = await Directory.systemTemp.createTemp('availability');
@@ -373,7 +381,7 @@ void main() {
     );
 
     test(
-      'tidal answering without atmos rules it out; amazon stays unknown',
+      'tidal and amazon answering without atmos both conclude negative',
       () async {
         final r = _offline(
           probe: true,
@@ -390,7 +398,7 @@ void main() {
           r.atmosStatus(tidal, 'tidal-web'),
           SpecialQualityStatus.unavailable,
         );
-        expect(r.atmosStatus(amazon, 'amzn'), SpecialQualityStatus.unknown);
+        expect(r.atmosStatus(amazon, 'amzn'), SpecialQualityStatus.unconfirmed);
       },
     );
 
@@ -405,6 +413,99 @@ void main() {
       r.atmosStatus(t, 'tidal-web');
       await pumpEventQueue();
       expect(r.atmosStatus(t, 'tidal-web'), SpecialQualityStatus.unknown);
+    });
+
+    List<TrackQualityChoice> onRequest(
+      SpecialQualityAvailability r,
+      Track t,
+      String service,
+    ) => buildTrackQualityChoices(
+      options: _options,
+      currentId: 'LOSSLESS',
+      track: t,
+      service: service,
+      availability: r,
+      spatialOnRequest: true,
+    );
+
+    test(
+      'a finished lookup without atmos keeps the row offered on request',
+      () async {
+        final r = _offline(
+          probe: true,
+          load: (_, _, id) async => {
+            'track': {'id': id, 'name': 'x', 'audio_modes': ''},
+          },
+        );
+        final t = _track(id: 'B0001', source: 'amazon');
+        final during = onRequest(r, t, 'amazon');
+        final row = during.firstWhere((c) => c.id == 'DOLBY_ATMOS');
+        expect(row.available, isTrue);
+        expect(row.checking, isTrue);
+        await pumpEventQueue();
+        final after = onRequest(r, t, 'amazon');
+        expect(
+          after.firstWhere((c) => c.id == 'DOLBY_ATMOS').available,
+          isTrue,
+        );
+        expect(after.firstWhere((c) => c.id == 'LOSSLESS').available, isTrue);
+      },
+    );
+
+    test(
+      'a lookup that could not run leaves atmos offered unconfirmed',
+      () async {
+        final r = _offline(probe: true);
+        final t = _track(id: 'B0002', source: 'amazon');
+        onRequest(r, t, 'amazon');
+        await pumpEventQueue();
+        final row = onRequest(
+          r,
+          t,
+          'amazon',
+        ).firstWhere((c) => c.id == 'DOLBY_ATMOS');
+        expect(row.available, isTrue);
+        expect(row.checking, isFalse);
+      },
+    );
+
+    test('a confirming lookup keeps the row offered', () async {
+      final r = _offline(
+        probe: true,
+        load: (_, _, id) async => {
+          'track': {'id': id, 'audio_modes': 'STEREO,DOLBY_ATMOS'},
+        },
+      );
+      final t = _track(id: 'B0003', source: 'amazon');
+      onRequest(r, t, 'amazon');
+      await pumpEventQueue();
+      final row = onRequest(
+        r,
+        t,
+        'amazon',
+      ).firstWhere((c) => c.id == 'DOLBY_ATMOS');
+      expect(row.available, isTrue);
+      expect(row.checking, isFalse);
+    });
+
+    test('a failed ac4 download does not hide a row never probed negative', () {
+      final r = _offline();
+      final t = _track(id: 'B0004', source: 'amazon', isrc: 'USABC1234567');
+      r.noteAttemptFailed(t, 'amazon', 'DOLBY_ATMOS');
+      final row = onRequest(
+        r,
+        t,
+        'amazon',
+      ).firstWhere((c) => c.id == 'DOLBY_ATMOS');
+      expect(row.available, isTrue);
+      expect(row.failedLast, isTrue);
+    });
+
+    test('the unavailable spatial notice is plain Spanish', () {
+      expect(
+        AppLocalizationsEs().qualityPickerSwitchSpatialUnavailable('Atmos'),
+        'Atmos no está disponible para esta canción',
+      );
     });
 
     test('a slow lookup never blocks and ends hidden', () async {

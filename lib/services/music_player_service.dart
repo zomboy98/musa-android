@@ -50,6 +50,7 @@ import 'package:mornye/services/music_haptics.dart';
 import 'package:mornye/utils/desktop_platform.dart';
 import 'package:mornye/utils/int_utils.dart';
 import 'package:mornye/utils/isrc_utils.dart';
+import 'package:mornye/utils/context_cover_availability.dart';
 import 'package:mornye/utils/playback_artwork.dart';
 import 'package:mornye/services/downloaded_embedded_cover_resolver.dart';
 import 'package:mornye/utils/logger.dart';
@@ -3261,10 +3262,19 @@ class MusicPlayerHandler extends BaseAudioHandler
     final artwork = await resolveEmbeddedArtworkUri(
       media.source,
       media.artUri,
+      keepRemoteArtwork: media.contextCover,
+      remoteAvailable: contextCoverAvailable,
       extract: (source) =>
           DownloadedEmbeddedCoverResolver.resolveOrExtract(source),
     );
-    if (artwork == null || !_isCurrentPlayRequest(generation, media)) return;
+    if (!_isCurrentPlayRequest(generation, media)) return;
+    final context = media.artUri ?? '';
+    if (artwork == null && media.contextCover && context.startsWith('http')) {
+      unawaited(cacheContextCover(context));
+      await _offerEmbeddedFallback(media, generation);
+      return;
+    }
+    if (artwork == null) return;
     final current = mediaItem.value;
     if (current == null) return;
     final updated = current.copyWith(artUri: Uri.parse(artwork));
@@ -3282,6 +3292,32 @@ class MusicPlayerHandler extends BaseAudioHandler
     }
     queue.add(List<MediaItem>.unmodifiable(_queueItems));
     unawaited(_persistSession(position: playbackState.value.position));
+  }
+
+  Future<void> _offerEmbeddedFallback(
+    PlayableMedia media,
+    int generation,
+  ) async {
+    final cover = await DownloadedEmbeddedCoverResolver.resolveOrExtract(
+      media.source,
+    );
+    if (cover == null || !_isCurrentPlayRequest(generation, media)) return;
+    final current = mediaItem.value;
+    if (current == null) return;
+    final fallback = Uri.file(cover).toString();
+    if (current.extras?['fallbackArt'] == fallback) return;
+    final updated = current.copyWith(
+      extras: {...?current.extras, 'fallbackArt': fallback},
+    );
+    mediaItem.add(updated);
+    final old = _queueItems[_index];
+    _queueItems[_index] = updated;
+    final original = _originalQueueOrder;
+    if (original != null) {
+      final i = original.indexWhere((item) => identical(item, old));
+      if (i >= 0) original[i] = updated;
+    }
+    queue.add(List<MediaItem>.unmodifiable(_queueItems));
   }
 
   Future<void> _loadNetworkMetadata(PlayableMedia media, int generation) async {

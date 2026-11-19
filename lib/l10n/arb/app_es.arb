@@ -6493,6 +6493,14 @@
     }
   },
   "qualityPickerSwitchDetailsTitle": "Detalles del cambio",
+  "qualityPickerSwitchSpatialUnavailable": "{format} no está disponible para esta canción",
+  "@qualityPickerSwitchSpatialUnavailable": {
+    "placeholders": {
+      "format": {
+        "type": "String"
+      }
+    }
+  },
   "qualityPickerSwitchUnavailable": "Esta pista no tiene esa calidad en {provider}",
   "@qualityPickerSwitchUnavailable": {
     "placeholders": {

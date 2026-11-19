@@ -96,6 +96,8 @@ class TrackQualityChoice {
 
   QualityMark get mark => markOverride ?? qualityMarkForFormat(format);
 
+  String? get spatialCodec => spatialCodecLabelFor(mark, id, label);
+
   TrackQualityChoice copyWith({
     bool? current,
     String? detail,
@@ -197,7 +199,9 @@ List<QualityOption> withDeclaredQualityKinds(
 /// Whether the song's own catalog data rules out [format]. Spatial audio is
 /// offered only once it is confirmed for the song and provider (declared by
 /// the catalog, found by a lookup, or already played); while a lookup runs it
-/// is not ruled out but shown as checking. On Tidal the declared audio quality
+/// is not ruled out but shown as checking. A lookup that finished without
+/// confirming it rules it out; one that could not run (no network, provider
+/// resting) leaves it offered on request, unconfirmed. On Tidal the declared audio quality
 /// is the ceiling for lossless and Hi-Res. Missing data rules out nothing
 /// else. A failed attempt to switch never rules a format out.
 bool qualityRuledOutForTrack(
@@ -314,8 +318,7 @@ List<TrackQualityChoice> buildTrackQualityChoices({
           available: !ruledOut,
           checking: checking,
           failedLast:
-              !isCurrent &&
-              registry.attemptFailed(track, service, option.id),
+              !isCurrent && registry.attemptFailed(track, service, option.id),
         );
       }(),
   ];
@@ -448,6 +451,7 @@ List<TrackQualityChoice> mergeProviderQualityChoices(
                   (e) =>
                       _sameMark(e.choice.mark, choice.mark) &&
                       e.choice.detail == choice.detail &&
+                      e.choice.spatialCodec == choice.spatialCodec &&
                       (!keepProviderTwins ||
                           _sameService(e.choice.service, provider.service)) &&
                       !(choice.detail == null &&
@@ -558,6 +562,9 @@ List<TrackQualityChoice> mergeProviderQualityChoices(
       }
     }
   }
+  final playing = currentService == null || currentId == null
+      ? null
+      : QualityCandidate(currentService, currentId);
   if (!entries.any((e) => e.current) && currentMark != null) {
     final sameMark = entries
         .where((e) => _sameMark(e.choice.mark, currentMark))
@@ -569,16 +576,16 @@ List<TrackQualityChoice> mergeProviderQualityChoices(
             ? null
             : pick((e) => e.choice.detail == currentDetail)) ??
         pick((e) => _detailsCompatible(e.choice.detail, currentDetail)) ??
+        pick((e) => playing != null && e.choice.candidates.contains(playing)) ??
         sameMark.firstOrNull;
     if (chosen != null) chosen.current = true;
   }
-  final playing = currentService == null || currentId == null
-      ? null
-      : QualityCandidate(currentService, currentId);
   final marked = entries.where((e) => e.current).toList();
   if (marked.length > 1) {
     final keep =
-        marked.where((e) => e.choice.candidates.contains(playing)).firstOrNull ??
+        marked
+            .where((e) => e.choice.candidates.contains(playing))
+            .firstOrNull ??
         marked.reduce((a, b) => b.rank < a.rank ? b : a);
     for (final e in marked) {
       e.current = identical(e, keep);
@@ -587,7 +594,10 @@ List<TrackQualityChoice> mergeProviderQualityChoices(
   final byDisplay = <String, List<_Merged>>{};
   for (final e in entries) {
     byDisplay
-        .putIfAbsent('${e.choice.mark.name}|${e.choice.detail}', () => [])
+        .putIfAbsent(
+          '${e.choice.mark.name}|${e.choice.detail}|${e.choice.spatialCodec}',
+          () => [],
+        )
         .add(e);
   }
   for (final group in byDisplay.values) {

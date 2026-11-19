@@ -2,11 +2,16 @@ import 'dart:io';
 
 /// Use a local file's embedded cover when its thumbnail is missing or only an
 /// online cover is known, so playback offline still shows the file's own art.
+/// A [keepRemoteArtwork] cover chosen by the list that opened the song stays
+/// while [remoteAvailable] says it can be shown; otherwise the file's own
+/// cover takes over.
 /// Callers run this separately from preparing audio and discard stale results.
 Future<String?> resolveEmbeddedArtworkUri(
   String source,
   String? artwork, {
   required Future<String?> Function(String) extract,
+  bool keepRemoteArtwork = false,
+  Future<bool> Function(String)? remoteAvailable,
 }) async {
   if (!source.startsWith('content://') && !source.startsWith('/')) {
     return null;
@@ -16,6 +21,11 @@ Future<String?> resolveEmbeddedArtworkUri(
       final uri = Uri.parse(artwork);
       final remote = uri.scheme == 'http' || uri.scheme == 'https';
       if (uri.hasScheme && uri.scheme != 'file' && !remote) return null;
+      if (remote &&
+          keepRemoteArtwork &&
+          (remoteAvailable == null || await remoteAvailable(artwork))) {
+        return null;
+      }
       if (!remote) {
         final path = uri.scheme == 'file' ? uri.toFilePath() : artwork;
         if (await File(path).exists()) return null;

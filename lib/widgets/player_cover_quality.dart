@@ -342,18 +342,18 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
     }
   }
 
-  String _failureReason(AppLocalizations l10n, QualitySwitchFailure failure) =>
-      switch (failure) {
-        QualitySwitchFailure.notCatalogTrack => l10n.qualityGuardNotCatalogTrack,
-        QualitySwitchFailure.identityMismatch =>
-          l10n.qualityGuardIdentityMismatch,
-        QualitySwitchFailure.sourceNotReady => l10n.qualityGuardSourceNotReady,
-        QualitySwitchFailure.casting => l10n.qualityGuardCasting,
-        QualitySwitchFailure.directMode => l10n.qualityGuardDirectMode,
-        QualitySwitchFailure.handoffRejected =>
-          l10n.qualityGuardHandoffRejected,
-        _ => l10n.qualityGuardOther,
-      };
+  String _failureReason(
+    AppLocalizations l10n,
+    QualitySwitchFailure failure,
+  ) => switch (failure) {
+    QualitySwitchFailure.notCatalogTrack => l10n.qualityGuardNotCatalogTrack,
+    QualitySwitchFailure.identityMismatch => l10n.qualityGuardIdentityMismatch,
+    QualitySwitchFailure.sourceNotReady => l10n.qualityGuardSourceNotReady,
+    QualitySwitchFailure.casting => l10n.qualityGuardCasting,
+    QualitySwitchFailure.directMode => l10n.qualityGuardDirectMode,
+    QualitySwitchFailure.handoffRejected => l10n.qualityGuardHandoffRejected,
+    _ => l10n.qualityGuardOther,
+  };
 
   void _tellSwitchFailure(
     TrackQualityChoice choice,
@@ -383,9 +383,10 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
         ? resolveVerificationTarget(ref, extensionId: result?.providerId)
         : null;
     final message = switch (failure) {
-      QualitySwitchFailure.unavailable => l10n.qualityPickerSwitchUnavailable(
-        provider,
-      ),
+      QualitySwitchFailure.unavailable =>
+        choice.format == QualityBadgeFormat.spatial
+            ? l10n.qualityPickerSwitchSpatialUnavailable(format)
+            : l10n.qualityPickerSwitchUnavailable(provider),
       QualitySwitchFailure.timedOut => l10n.qualityPickerSwitchProviderSlow,
       QualitySwitchFailure.unsupportedFormat =>
         l10n.qualityPickerSwitchUnsupported,
@@ -491,7 +492,12 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
           .replaceTrackQualityAcrossProviders(
             track,
             choice.candidates.isEmpty
-                ? [(service: choice.service ?? service ?? 'tidal', id: choice.id)]
+                ? [
+                    (
+                      service: choice.service ?? service ?? 'tidal',
+                      id: choice.id,
+                    ),
+                  ]
                 : [
                     for (final c in choice.candidates)
                       (service: c.service, id: c.id),
@@ -558,7 +564,9 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
     messenger.showSnackBar(
       SnackBar(
         content: Text(message),
-        duration: result.ok ? const Duration(seconds: 4) : switchFailureDuration,
+        duration: result.ok
+            ? const Duration(seconds: 4)
+            : switchFailureDuration,
         showCloseIcon: !result.ok,
         action: result.ok ? null : _detailsAction(l10n, body),
       ),
@@ -912,7 +920,14 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
           );
     final choices = allChoices;
     final providerCount = _providers().length;
-    _logSelector(origin, track, providerCount, choices, ruledOut, kind ?? 'other');
+    _logSelector(
+      origin,
+      track,
+      providerCount,
+      choices,
+      ruledOut,
+      kind ?? 'other',
+    );
     final requestedId = catalog == null
         ? null
         : (catalogPlayback.qualityOverrideFor(catalog) ??

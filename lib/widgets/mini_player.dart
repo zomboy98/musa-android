@@ -294,6 +294,8 @@ class _MiniPlayerBodyState extends ConsumerState<_MiniPlayerBody> {
                             child: PlayerArtwork(
                               complete: true,
                               artUri: mediaItem.artUri?.toString(),
+                              fallbackUri: mediaItem.extras?['fallbackArt']
+                                  ?.toString(),
                               colorScheme: colorScheme,
                               cacheWidth: PlayerArtwork.miniCacheWidth,
                               iconSize: 22,

@@ -531,6 +531,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
             child: key == _compactArtworkKey
                 ? PlayerArtwork(
                     artUri: mediaItem.artUri?.toString(),
+                    fallbackUri: mediaItem.extras?['fallbackArt']?.toString(),
                     colorScheme: colorScheme,
                     cacheWidth: PlayerArtwork.transitionCacheWidth(context),
                   )

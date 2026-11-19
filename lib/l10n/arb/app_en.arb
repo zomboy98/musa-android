@@ -12058,6 +12058,14 @@
     }
   },
   "qualityPickerSwitchDetailsTitle": "Switch details",
+  "qualityPickerSwitchSpatialUnavailable": "{format} isn't available for this song",
+  "@qualityPickerSwitchSpatialUnavailable": {
+    "placeholders": {
+      "format": {
+        "type": "String"
+      }
+    }
+  },
   "qualityPickerSwitchUnavailable": "This track doesn't have that quality on {provider}",
   "@qualityPickerSwitchUnavailable": {
     "placeholders": {

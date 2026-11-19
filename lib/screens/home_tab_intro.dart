@@ -749,6 +749,7 @@ class _HomeContinueListeningCardState
       artUri:
           mediaItem.artUri?.toString() ??
           mediaItem.extras?['artworkRef']?.toString(),
+      fallbackUri: mediaItem.extras?['fallbackArt']?.toString(),
       colorScheme: colorScheme,
       cacheWidth: (extent * devicePixelRatio).round(),
       iconSize: 32,
