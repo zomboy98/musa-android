@@ -1,0 +1,19 @@
+// Apply manually to android/app/build.gradle.kts ONLY in the disposable build
+// snapshot. Do not copy this into the main product source tree or release CI.
+// This custom build type and Flutter plugin configuration are not yet built.
+android.buildTypes.create("verificationFixture") {
+    initWith(android.buildTypes.getByName("debug"))
+    applicationIdSuffix = ".verificationfixture"
+    versionNameSuffix = "-verification-fixture"
+    isDebuggable = true
+    signingConfig = android.signingConfigs.getByName("debug")
+    matchingFallbacks += listOf("debug")
+}
+
+// Required build-time gates before packaging this variant:
+// - raw/musa_fixture_ca contains ONLY the ephemeral fixture CA public PEM.
+// - No private key or server certificate key is inside android/ or assets/.
+// - Final merged package is org.musa.music.verificationfixture.
+// - Main release/debug merged manifests retain their original trust config.
+// - Backend has no production user data, credentials or restored backups.
+// - Dart panel flag true if testing the complete pending-auth Dart flow.

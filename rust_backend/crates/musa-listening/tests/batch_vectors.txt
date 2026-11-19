@@ -1,0 +1,4 @@
+# name|start milliseconds in 2026-10-01|events|batches (day:track:ms:plays; separate batches by /)
+midnight|86390000|u:A:1,t:40000,f|2026-10-01:A:10000:0;2026-10-02:A:30000:1
+checkpoints|0|u:A:1,t:20000,c,t:9999,f,t:1,f,t:30000,f|2026-10-01:A:29999:0/2026-10-01:A:1:1/2026-10-01:A:30000:0
+pause_midnight|86390000|u:A:1,t:5000,u:A:0,t:10000,u:A:1,t:25000,f|2026-10-01:A:5000:0;2026-10-02:A:25000:1

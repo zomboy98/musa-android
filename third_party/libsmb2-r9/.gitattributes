@@ -1,0 +1,6 @@
+*.so binary !eol
+*.tar.gz binary !eol
+COPYING -text !eol
+LICENCE-LGPL-2.1.txt -text !eol
+manifest.json -text !eol
+SHA256SUMS -text !eol

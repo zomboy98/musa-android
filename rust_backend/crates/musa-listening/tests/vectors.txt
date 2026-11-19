@@ -1,0 +1,6 @@
+# Shared recorder/engine vectors: name|events|expected (track,milliseconds,plays)
+threshold|u:A:1,t:29999,t:1,t:30000|A:60000:1
+pause|u:A:1,t:20000,u:A:0,t:600000,u:A:1,t:20000|A:40000:1
+enabled|u:A:1,t:20000,e:0,t:60000,e:1,t:10000|A:30000:1
+ended_change|u:A:1,t:35000,x:A,u:A:1,t:35000,u:B:1,t:10000|A:70000:2,B:10000:0
+null|u:-:1,t:60000|-

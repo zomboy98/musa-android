@@ -1,0 +1,4 @@
+MORNYE_PRIVATE_MOV_1 {
+    global: mornye_private_mov; mornye_private_mov_fd_v1;
+    local: *;
+};

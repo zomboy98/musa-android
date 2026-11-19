@@ -1,0 +1,11 @@
+<network-security-config>
+    <!-- Existing public trust is retained; only localhost gains fixture trust.
+         This is not an egress allowlist. Use the isolated package and test data. -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors><certificates src="system" /></trust-anchors>
+    </base-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="false">localhost</domain>
+        <trust-anchors><certificates src="@raw/musa_fixture_ca" /></trust-anchors>
+    </domain-config>
+</network-security-config>

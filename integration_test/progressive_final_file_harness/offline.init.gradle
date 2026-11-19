@@ -1,0 +1,26 @@
+// Test invocation only; does not edit normal manifests or build scripts.
+// Both resulting APKs MUST be inspected. This unexecuted script is not proof.
+gradle.beforeProject { project ->
+    if (project.path == ':app') {
+        project.plugins.withId('com.android.application') {
+            project.extensions.getByName('androidComponents').finalizeDsl { android ->
+                if (System.getenv('MORNYE_CATALOG_INTEGRATION') != '1' ||
+                    android.defaultConfig.applicationId != 'org.musa.music' ||
+                    android.buildTypes.getByName('debug').applicationIdSuffix != '.catalogintegration') {
+                    throw new GradleException('Offline harness requires isolated catalogintegration debug package')
+                }
+                def manifestPath = gradle.startParameter.projectProperties['musaProgressiveOfflineManifestDir']
+                if (!manifestPath) throw new GradleException('Missing musaProgressiveOfflineManifestDir')
+                def root = new File(manifestPath).canonicalFile
+                def target = new File(root, 'offline-debug-manifest.xml')
+                def instrumented = new File(root, 'offline-androidtest-manifest.xml')
+                if (!target.isFile() || !instrumented.isFile()) {
+                    throw new GradleException('Offline test manifests are absent')
+                }
+                android.sourceSets.getByName('debug').manifest.srcFile(target)
+                // Selected test does not use other tests' document providers.
+                android.sourceSets.getByName('androidTest').manifest.srcFile(instrumented)
+            }
+        }
+    }
+}

@@ -1,0 +1,9 @@
+const String pluginCodeApiHost = 'musa-api.heyshin.app';
+const String pluginCodeApiPath = '/v1/code/';
+const int pluginCodeMinLength = 4;
+const int pluginCodeMaxLength = 32;
+const Duration pluginCodeLookupTimeout = Duration(seconds: 10);
+const Duration pluginCodeDownloadTimeout = Duration(seconds: 60);
+const int pluginCodeMaxPackageBytes = 150 * 1024 * 1024;
+const int pluginCodeMaxRedirects = 3;
+const Duration pluginCodeItemTimeout = Duration(seconds: 90);

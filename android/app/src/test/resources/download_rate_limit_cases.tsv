@@ -1,0 +1,14 @@
+soundcloud_hls	download_error	SoundCloud HLS request failed: HTTP 429	rate_limit
+soundcloud_stream	download_error	SoundCloud stream request failed: HTTP 429	rate_limit
+soundcloud_api_retry	api_error	Could not fetch track data: SoundCloud API failed after retry: HTTP 429	rate_limit
+amazon_file	download_error	Failed to download file: HTTP error: 429	rate_limit
+deezer_stream	download_error	Failed to download Deezer stream: HTTP error: 429	rate_limit
+qobuz_stream	download_error	Failed to download Qobuz stream: HTTP error: 429	rate_limit
+ytmusic_cobalt	download_error	Failed to download file via cobalt: HTTP error: 429	rate_limit
+ytmusic_yt1d_wrapped	download_error	All providers failed. Last error: Download failed: Failed to download file via yt1d: HTTP error: 429	rate_limit
+soundcloud_4290	api_error	SoundCloud HLS request failed: HTTP 4290	unknown
+qobuz_4290	download_error	Failed to download Qobuz stream: HTTP error: 4290	unknown
+ytmusic_unknown_source	download_error	Failed to download file via example: HTTP error: 429	unknown
+url	network	Connection reset https://fixture.invalid/track;status=429	network
+url_with_wrapper	network	Connection reset https://fixture.invalid/Failed%20to%20download%20file%20via%20cobalt:%20HTTP%20error:%20429	network
+json_with_wrapper	network	Network error {"failure":"SoundCloud HLS request failed: HTTP 429"}	network

@@ -1,0 +1,208 @@
+import 'dart:async';
+
+import 'package:audio_service/audio_service.dart' show MediaItem;
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mornye/l10n/l10n.dart';
+import 'package:mornye/providers/music_player_provider.dart';
+import 'package:mornye/providers/playback_provider.dart';
+import 'package:mornye/screens/local_album_screen.dart';
+import 'package:mornye/services/library_database.dart';
+import 'package:mornye/theme/app_theme.dart';
+import 'package:mornye/theme/mornye_theme.dart';
+import 'package:mornye/widgets/album_detail_header.dart';
+import 'package:mornye/widgets/album_track_tile.dart';
+
+import 'support/app_icon_finder.dart';
+
+class _Playing extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void emit(bool playing) => state = playing;
+}
+
+final _playingProvider = NotifierProvider<_Playing, bool>(_Playing.new);
+
+class _Player extends MusicPlayerController {
+  _Player(this._emit);
+
+  final void Function(bool) _emit;
+  final _toggles = <bool>[];
+
+  @override
+  Future<void> setShuffle(bool enabled) async {}
+
+  @override
+  Future<void> togglePlayPause(bool isPlaying) async {
+    _toggles.add(isPlaying);
+    _emit(!isPlaying);
+  }
+}
+
+class _Playback extends PlaybackController {
+  _Playback(this._start);
+
+  final void Function(LocalLibraryItem) _start;
+  final _started = <String>[];
+
+  @override
+  Future<void> playLocalLibraryQueue(
+    List<LocalLibraryItem> items, {
+    required LocalLibraryItem startItem,
+    int? startIndex,
+  }) async {
+    _started.add(startItem.id);
+    _start(startItem);
+  }
+}
+
+/// The current row's equalizer glyph loops while playing, so this settles
+/// with bounded pumps instead of waiting for an idle frame.
+Future<void> _settle(WidgetTester tester) async {
+  for (var i = 0; i < 20; i++) {
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+}
+
+void main() {
+  for (final mornye in [false, true]) {
+    testWidgets(
+      'local album controls pause and resume without restarting ($mornye)',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        tester.view.physicalSize = const Size(430, 1200);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final media = StreamController<MediaItem?>();
+        addTearDown(media.close);
+        late final ProviderContainer container;
+        void emitPlaying(bool playing) =>
+            container.read(_playingProvider.notifier).emit(playing);
+        final player = _Player(emitPlaying);
+        final playback = _Playback((track) {
+          media.add(
+            MediaItem(
+              id: track.id,
+              title: track.trackName,
+              extras: {'source': track.filePath},
+            ),
+          );
+          emitPlaying(true);
+        });
+        final tracks = [
+          for (final number in [1, 2])
+            LocalLibraryItem(
+              id: '$number',
+              trackName: 'Song $number',
+              artistName: 'Artist',
+              albumName: 'Album',
+              filePath: 'content://library/song-$number.flac',
+              trackNumber: number,
+              scannedAt: DateTime(2026),
+            ),
+        ];
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              currentMediaItemProvider.overrideWithBuild(
+                (ref, notifier) => media.stream,
+              ),
+              playbackPlayingProvider.overrideWith(
+                (ref) => ref.watch(_playingProvider),
+              ),
+              musicPlayerControllerProvider.overrideWithValue(player),
+              playbackProvider.overrideWith(() => playback),
+            ],
+            child: MaterialApp(
+              theme: mornye
+                  ? MornyeTheme.build(Brightness.light)
+                  : AppTheme.light(),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: LocalAlbumScreen(
+                albumName: 'Album',
+                artistName: 'Artist',
+                tracks: tracks,
+              ),
+            ),
+          ),
+        );
+        container = ProviderScope.containerOf(
+          tester.element(find.byType(LocalAlbumScreen)),
+        );
+        await _settle(tester);
+        final header = find.byType(AlbumPlayActions);
+        Finder row(int number) => find.byWidgetPredicate(
+          (widget) =>
+              widget is AlbumTrackTile && widget.trackName == 'Song $number',
+        );
+        final pauseIcon = mornye ? CupertinoIcons.pause_fill : Icons.pause;
+
+        await tester.tap(
+          find.descendant(of: header, matching: find.text('Play')),
+        );
+        await _settle(tester);
+        expect(playback._started, ['1']);
+        expect(
+          find.descendant(of: header, matching: find.text('Pause')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: header, matching: findAppIcon(pauseIcon)),
+          findsOneWidget,
+        );
+        expect(tester.widget<AlbumTrackTile>(row(1)).isCurrent, isTrue);
+        expect(tester.widget<AlbumTrackTile>(row(2)).isCurrent, isFalse);
+
+        await tester.tap(
+          find.descendant(of: header, matching: find.text('Pause')),
+        );
+        await _settle(tester);
+        expect(player._toggles, [true]);
+        expect(
+          find.descendant(of: header, matching: find.text('Play')),
+          findsOneWidget,
+        );
+        await tester.ensureVisible(row(2));
+        await tester.tap(find.text('Song 2'));
+        await _settle(tester);
+        expect(playback._started, ['1', '2']);
+        expect(tester.widget<AlbumTrackTile>(row(2)).isCurrent, isTrue);
+
+        // A queue started from a playlist uses its file path as the media ID.
+        media.add(MediaItem(id: tracks.first.filePath, title: 'Song 1'));
+        emitPlaying(true);
+        await _settle(tester);
+        expect(tester.widget<AlbumTrackTile>(row(1)).isCurrent, isTrue);
+
+        // A matching row ID must not pause a different file in another album.
+        media.add(
+          const MediaItem(
+            id: '1',
+            title: 'Other',
+            extras: {'source': '/other.flac'},
+          ),
+        );
+        emitPlaying(true);
+        await _settle(tester);
+        expect(
+          find.descendant(of: header, matching: find.text('Play')),
+          findsOneWidget,
+        );
+        expect(findAppIcon(pauseIcon), findsNothing);
+        await tester.ensureVisible(header);
+        await tester.tap(
+          find.descendant(of: header, matching: find.text('Play')),
+        );
+        await _settle(tester);
+        expect(playback._started, ['1', '2', '1']);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+    );
+  }
+}

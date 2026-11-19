@@ -1,0 +1,21 @@
+MUSA
+Copyright 2026 MUSA (modifications to the base work)
+
+SPDX-License-Identifier: LGPL-3.0-only
+
+MUSA is a modified version of a work originally copyrighted 2026 zarzet and
+licensed under LGPL-3.0-only; the original copyright and license notices are
+preserved. This work has been modified from the original: see the version
+history for the changes and their dates.
+
+MUSA es una versión modificada de una obra con copyright original de 2026 de
+zarzet, licenciada bajo LGPL-3.0-only; se conservan los avisos originales de
+copyright y de licencia. Esta obra ha sido modificada respecto a la original:
+consulta el historial de versiones para ver los cambios y sus fechas.
+
+The complete terms are in LICENSE and COPYING.
+Los términos completos están en LICENSE y COPYING.
+
+Third-party components retain their own copyrights and licenses. Their notices
+are included in third_party/, rust_backend/NOTICE, assets/licenses/, and the
+application's Licenses page.

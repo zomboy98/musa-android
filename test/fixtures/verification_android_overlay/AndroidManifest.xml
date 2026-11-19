@@ -1,0 +1,12 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- Copy only into src/verificationFixture in an isolated build snapshot. -->
+    <application
+        android:networkSecurityConfig="@xml/verification_fixture_network_security"
+        android:label="MUSA verification fixture"
+        tools:replace="android:networkSecurityConfig,android:label">
+        <activity android:name=".VerificationFixtureHostActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Material.NoActionBar" />
+    </application>
+</manifest>
