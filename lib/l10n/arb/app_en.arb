@@ -12042,6 +12042,7 @@
   "qualityVideoNeedsWifi": "Video needs Wi-Fi. You can allow mobile data in Playback settings.",
   "qualityVideoBackToAudio": "Back to audio only",
   "qualityPickerCancelSwitch": "Cancel quality switch",
+  "qualityPickerNoOtherQualities": "No other qualities are available for this track",
   "qualityPickerAlreadyPlaying": "You are already listening to this quality",
   "qualityPickerRequestedUnavailable": "Requested: {quality} — not available for this track",
   "@qualityPickerRequestedUnavailable": {

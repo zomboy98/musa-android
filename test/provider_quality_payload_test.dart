@@ -696,9 +696,9 @@ void main() {
   }
 
   for (final (file, id, quality) in [
-    ('amzn', 'amazon', 'opus'),
+    ('amzn', 'amazon', 'best'),
     ('deezer', 'deezer', 'flac'),
-    ('tidal-web', 'tidal-web', 'HIGH'),
+    ('tidal-web', 'tidal-web', 'LOSSLESS'),
     ('ytmusic-spotiflac', 'ytmusic-spotiflac', 'best'),
     ('soundcloud', 'soundcloud', 'aac_160'),
   ]) {

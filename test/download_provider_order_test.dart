@@ -89,11 +89,11 @@ const _alphabetical = [
 ];
 
 const _qualityOrder = [
-  'amazon',
   'tidal-web',
   'deezer',
   'qobuz-web',
   'beatport',
+  'amazon',
   'jiosaavn',
   'ytmusic-spotiflac',
   'soundcloud',
@@ -117,7 +117,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test(
-    'default order puts Amazon first, then Tidal, rest by maximum quality',
+    'default order puts Tidal and Deezer first and Amazon after the lossless providers',
     () {
       final extensions = [
         for (final id in _alphabetical) Extension.fromJson(_json(id)),
@@ -139,7 +139,7 @@ void main() {
     ]);
   });
 
-  test('sin proveedor elegido la instalacion nueva resuelve a Amazon', () {
+  test('sin proveedor elegido la instalacion nueva resuelve a Tidal, no a Amazon', () {
     final extensions = [
       for (final id in _alphabetical) Extension.fromJson(_json(id)),
     ];
@@ -148,19 +148,19 @@ void main() {
       providerPriority: defaultDownloadProviderOrder(extensions),
     );
     expect(const AppSettings().defaultService, '');
-    expect(resolveConfiguredDownloadService('', state), 'amazon');
+    expect(resolveConfiguredDownloadService('', state), 'tidal-web');
     expect(resolveConfiguredDownloadService('tidal-web', state), 'tidal-web');
   });
 
-  test('Amazon goes first, then Tidal, when Deezer is not installed', () {
+  test('Tidal goes before Qobuz and Amazon when Deezer is not installed', () {
     final extensions = [
       for (final id in ['amazon', 'qobuz-web', 'tidal-web'])
         Extension.fromJson(_json(id)),
     ];
     expect(defaultDownloadProviderOrder(extensions), [
-      'amazon',
       'tidal-web',
       'qobuz-web',
+      'amazon',
     ]);
   });
 
@@ -322,9 +322,9 @@ void main() {
           'sources_unified_v1': true,
         });
         expect(state.providerPriority.take(3), [
-          'amazon',
           'tidal-web',
           'atmos-new',
+          'deezer',
         ]);
         expect(await storedOrder(), state.providerPriority);
       },
@@ -377,7 +377,7 @@ void main() {
           container.read(extensionProvider).providerPriority,
           _qualityOrder,
         );
-        expect(container.read(settingsProvider).defaultService, 'amazon');
+        expect(container.read(settingsProvider).defaultService, 'tidal-web');
       },
     );
 
@@ -415,7 +415,7 @@ void main() {
           settings: const AppSettings(defaultService: 'jiosaavn'),
         );
         expect(state.providerPriority, _qualityOrder);
-        expect(container.read(settingsProvider).defaultService, 'amazon');
+        expect(container.read(settingsProvider).defaultService, 'tidal-web');
       },
     );
 

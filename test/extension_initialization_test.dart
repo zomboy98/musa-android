@@ -615,7 +615,9 @@ void main() {
   }
 
   test('partial startup preserves the selected provider until recovery', () async {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({
+      'provider_priority_quality_order_applied': true,
+    });
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final notifier = container.read(extensionProvider.notifier);

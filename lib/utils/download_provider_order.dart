@@ -1,7 +1,13 @@
 import 'package:mornye/models/extension.dart';
 import 'package:mornye/utils/download_quality_options.dart';
 
-const _downloadPreferredProviderIds = ['amazon', 'tidal-web', 'tidal'];
+const _downloadPreferredProviderIds = [
+  'deezer',
+  'tidal-web',
+  'tidal',
+  'amazon',
+];
+const _streamingFirstProviderId = 'amazon';
 
 int _downloadPreferredRank(String id) {
   final index = _downloadPreferredProviderIds.indexOf(id.toLowerCase());
@@ -13,6 +19,23 @@ int _qualityTier(int ceiling) => ceiling >= spatialStrength
     : ceiling >= losslessStrength
     ? 1
     : 0;
+
+int _downloadStrength(Extension extension) {
+  final ceiling = downloadQualityCeiling(extension.qualityOptions);
+  if (extension.id.trim().toLowerCase() != _streamingFirstProviderId) {
+    return ceiling;
+  }
+  return ceiling >= losslessStrength ? losslessStrength - 1 : ceiling;
+}
+
+int _downloadTier(Extension extension) {
+  final ceiling = downloadQualityCeiling(extension.qualityOptions);
+  final tier = _qualityTier(ceiling);
+  return extension.id.trim().toLowerCase() == _streamingFirstProviderId &&
+          tier > 1
+      ? 1
+      : tier;
+}
 
 /// Audio order computed from what each provider declares: best quality tier
 /// first (spatial, then lossless or hi-res, then lossy or undeclared), then
@@ -30,7 +53,8 @@ List<String> defaultDownloadProviderOrder(
         index: entry.$1,
         id: entry.$2.id.trim(),
         rank: _downloadPreferredRank(entry.$2.id.trim()),
-        strength: downloadQualityCeiling(entry.$2.qualityOptions),
+        tier: _downloadTier(entry.$2),
+        strength: _downloadStrength(entry.$2),
         sessionMissing:
             entry.$2.usesSignedSession &&
                 !active.contains(entry.$2.id.trim().toLowerCase())
@@ -39,7 +63,7 @@ List<String> defaultDownloadProviderOrder(
       ),
   ]..removeWhere((entry) => entry.id.isEmpty);
   entries.sort((a, b) {
-    final byTier = _qualityTier(b.strength).compareTo(_qualityTier(a.strength));
+    final byTier = b.tier.compareTo(a.tier);
     if (byTier != 0) return byTier;
     final bySession = a.sessionMissing.compareTo(b.sessionMissing);
     if (bySession != 0) return bySession;

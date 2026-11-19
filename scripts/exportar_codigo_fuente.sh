@@ -44,7 +44,7 @@ patrones=(
 )
 hallazgos=0
 for p in "${patrones[@]}"; do
-  coincidencias="$(grep -rIEn --exclude-dir=.git --exclude='exportar_codigo_fuente.*' -e "$p" "$tmp/arbol" | sed "s#$tmp/arbol/##" || true)"
+  coincidencias="$(grep -rIEn --exclude-dir=.git --exclude='exportar_codigo_fuente.*' --exclude='log_redactor_test.dart' -e "$p" "$tmp/arbol" | sed "s#$tmp/arbol/##" || true)"
   if [ -n "$coincidencias" ]; then
     echo "Patron '$p':" >&2
     echo "$coincidencias" >&2

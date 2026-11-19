@@ -902,7 +902,6 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                 ? null
                 : PlayerCanvasBackground(
                     source: canvasSource,
-                    playing: ref.watch(playbackPlayingProvider),
                     veilColor: colorScheme.surface,
                     veil: 0.5,
                   ),
@@ -966,7 +965,6 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                     : PlayerCanvasBackground(
                         key: ValueKey(backdropSource),
                         source: backdropSource,
-                        playing: ref.watch(playbackPlayingProvider),
                         veil: _currentPage == 0 ? 0.3 : 0.5,
                         edgeScrims: fullBleedVideo && _currentPage == 0,
                         adaptiveFit: fullBleedVideo,

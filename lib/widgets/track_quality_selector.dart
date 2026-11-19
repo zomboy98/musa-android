@@ -124,10 +124,6 @@ class _TrackQualitySelectorState extends State<TrackQualitySelector> {
       return;
     }
     final offers = _offers;
-    if (offers.isEmpty) {
-      widget.onShowInfo?.call();
-      return;
-    }
     if (_measure() == null) return;
     final theme = Theme.of(context);
     final scheme = widget.colorScheme ?? theme.colorScheme;
@@ -140,6 +136,9 @@ class _TrackQualitySelectorState extends State<TrackQualitySelector> {
         theme: theme,
         scheme: scheme,
         choices: offers,
+        currentLabel: widget.currentLabel,
+        currentMark:
+            widget.currentMark ?? qualityMarkForFormat(widget.currentFormat),
         onRemoved: () {
           if (_route == route) _route = null;
           if (route.isActive) route.navigator?.removeRoute(route);
@@ -415,12 +414,17 @@ class _QualityWindow extends StatefulWidget {
     required this.theme,
     required this.scheme,
     required this.choices,
+    required this.currentLabel,
+    required this.currentMark,
     required this.onRemoved,
     required this.onSelected,
     this.onShowInfo,
     this.onCancelSwitch,
     this.requestedNote,
   });
+
+  final String currentLabel;
+  final QualityMark currentMark;
 
   final String? requestedNote;
   final Rect? Function() measure;
@@ -533,6 +537,48 @@ class _QualityWindowState extends State<_QualityWindow>
     }
   }
 
+  Widget _onlyCurrent(Color fg, AppLocalizations l10n) {
+    return Padding(
+      key: const ValueKey('track-quality-only-current'),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              QualityBadgeArt(
+                format: qualityFormatForMark(widget.currentMark),
+                mark: widget.currentMark,
+                size: 22,
+                color: fg,
+                semanticLabel: widget.currentLabel,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  widget.currentLabel,
+                  style: TextStyle(
+                    color: fg,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            l10n.qualityPickerNoOtherQualities,
+            style: TextStyle(
+              color: fg.withValues(alpha: _softText),
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _cell(_QualityEntry entry, ColorScheme scheme) {
     if (entry.isGroup) {
       final range = _groupRange(entry.group);
@@ -592,7 +638,7 @@ class _QualityWindowState extends State<_QualityWindow>
         .toDouble();
     final below = size.height - padding.bottom - anchor.bottom - _popoverGap;
     final above = anchor.top - padding.top - _popoverGap;
-    final need = _headerHeight + _entries.length * _rowHeight + 12;
+    final need = _headerHeight + math.max(_entries.length, 1) * _rowHeight + 12;
     final opensDown = below >= need || below >= above;
     final room = (opensDown ? below : above) - _popoverMargin;
     final maxHeight = math.max(
@@ -616,6 +662,7 @@ class _QualityWindowState extends State<_QualityWindow>
           color: fg.withValues(alpha: 0.16),
         ),
       for (final entry in lossy) _cell(entry, scheme),
+      if (_entries.isEmpty) _onlyCurrent(fg, l10n),
     ];
     final header = ConstrainedBox(
       constraints: const BoxConstraints(minHeight: _headerHeight),

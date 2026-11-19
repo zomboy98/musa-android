@@ -168,7 +168,7 @@ void main() {
     },
   );
 
-  testWidgets('an empty download choice becomes the MP3-equivalent default', (
+  testWidgets('an empty download choice becomes the lossless default', (
     tester,
   ) async {
     _tall(tester);
@@ -178,7 +178,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     final settings = _container(tester).read(settingsProvider);
-    expect(settings.audioQuality, 'AAC_128');
+    expect(settings.audioQuality, 'LOSSLESS');
     expect(settings.playbackQuality, 'auto_light');
   });
 
@@ -226,7 +226,7 @@ void main() {
     final settings = _container(tester).read(settingsProvider);
     expect(settings.defaultService, 'a');
     expect(settings.playbackQuality, 'auto_light');
-    expect(settings.audioQuality, 'AAC_128');
+    expect(settings.audioQuality, 'LOSSLESS');
   });
 
   testWidgets('changing provider changes the quality list in place', (
@@ -263,7 +263,7 @@ void main() {
       find.byKey(const ValueKey('streaming_quality_MP3_320')),
       findsOneWidget,
     );
-    expect(_container(tester).read(settingsProvider).audioQuality, 'MP3_320');
+    expect(_container(tester).read(settingsProvider).audioQuality, 'FLAC');
   });
 
   testWidgets('choosing a quality is stored at once, without a button', (
@@ -347,7 +347,7 @@ void main() {
     String? pick(List<QualityOption> options) =>
         defaultDownloadQualityOf(options)?.id;
 
-    test('tidal-web: high lossy tier, not hi-res', () {
+    test('tidal-web: standard lossless, not hi-res', () {
       expect(
         pick(const [
           QualityOption(id: 'LOW', label: 'Low', kind: 'lossy'),
@@ -359,7 +359,7 @@ void main() {
             kind: 'lossless',
           ),
         ]),
-        'HIGH',
+        'LOSSLESS',
       );
     });
 
@@ -379,14 +379,14 @@ void main() {
       );
     });
 
-    test('amazon: opus 320 over best and spatial', () {
+    test('amazon: best available over opus and spatial', () {
       expect(
         pick(const [
           QualityOption(id: 'best', label: 'Best'),
           QualityOption(id: 'opus', label: 'Opus 320 kbps', kind: 'lossy'),
           QualityOption(id: 'eac3', label: 'Dolby Atmos', kind: 'spatial'),
         ]),
-        'opus',
+        'best',
       );
     });
 

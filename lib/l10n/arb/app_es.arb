@@ -6461,6 +6461,7 @@
   "qualityVideoNeedsWifi": "El vídeo necesita Wi-Fi. Puedes permitir datos móviles en los ajustes de Reproducción.",
   "qualityVideoBackToAudio": "Volver a solo audio",
   "qualityPickerCancelSwitch": "Cancelar el cambio de calidad",
+  "qualityPickerNoOtherQualities": "No hay otras calidades disponibles para esta pista",
   "qualityPickerAlreadyPlaying": "Ya estás escuchando esta calidad",
   "qualityPickerRequestedUnavailable": "Pedida: {quality} — no disponible para esta pista",
   "@qualityPickerRequestedUnavailable": {

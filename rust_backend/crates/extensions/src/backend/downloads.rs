@@ -7,6 +7,7 @@ mod account_tests;
 mod container_tests;
 #[cfg(feature = "experimental-private-mov")]
 pub(super) mod encrypted;
+mod duration;
 mod matching;
 #[cfg(all(test, feature = "experimental-prepublication-opus"))]
 mod opus;
@@ -39,6 +40,7 @@ use std::path::Path;
 use std::sync::{Arc, mpsc};
 use std::time::{Duration, Instant};
 
+use duration::{duration_mismatch_message, duration_mismatch_ms};
 use matching::{matches_track, probe_open_file, probe_result, strict_codec_matches};
 use metadata::{
     apply_metadata, download_metadata_fields, host_track, preferred_track_id,
@@ -1736,6 +1738,14 @@ impl Backend {
                 && request.album_folder_template.contains("{album}"),
             &check,
         )?;
+        if let Some(difference) = duration_mismatch_ms(request.duration_ms, &result) {
+            return Ok(DownloadOutcome::Retry(failure(
+                &manifest.name,
+                &duration_mismatch_message(&manifest.name, request.duration_ms, difference),
+                "duration_mismatch",
+                0,
+            )));
+        }
         if !relay_unverified && !strict_codec_matches(request, manifest, &result) {
             return Ok(DownloadOutcome::Retry(strict_quality_failure(
                 &manifest.name,

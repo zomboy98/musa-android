@@ -213,7 +213,7 @@ void main() {
         _ext('tidal-web', download: true, quality: _atmos),
         _ext('amazon', download: true, quality: _atmos),
       ]);
-      expect(order, ['amazon', 'tidal-web', 'zzz']);
+      expect(order, ['tidal-web', 'zzz', 'amazon']);
     });
 
     test('real manifests order from best quality to the lightest', () {
@@ -221,11 +221,11 @@ void main() {
         _realManifests().where((ext) => ext.hasDownloadProvider),
       );
       expect(order, [
-        'amazon',
         'tidal-web',
         'deezer',
         'qobuz-web',
         'beatport',
+        'amazon',
         'jiosaavn',
         'ytmusic-spotiflac',
         'soundcloud',

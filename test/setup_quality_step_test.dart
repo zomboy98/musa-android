@@ -100,7 +100,7 @@ void main() {
         Tristate.isTrue;
   }
 
-  testWidgets('light automatic and best download are selected by default', (
+  testWidgets('light automatic and lossless download are selected by default', (
     tester,
   ) async {
     final handle = tester.ensureSemantics();
@@ -108,8 +108,8 @@ void main() {
     expect(selected(tester, 'setup_streaming_auto_light'), isTrue);
     expect(selected(tester, 'setup_streaming_AAC_128'), isFalse);
     expect(selected(tester, 'setup_provider_$_providerId'), isTrue);
-    expect(selected(tester, 'setup_download_AAC_128'), isTrue);
-    expect(selected(tester, 'setup_download_LOSSLESS'), isFalse);
+    expect(selected(tester, 'setup_download_LOSSLESS'), isTrue);
+    expect(selected(tester, 'setup_download_AAC_128'), isFalse);
     expect(find.text('Streaming quality'), findsOneWidget);
     expect(find.text('Download quality'), findsOneWidget);
     expect(find.text('AAC 128 kbps'), findsNWidgets(2));
@@ -166,7 +166,7 @@ void main() {
     expect(find.text('Import library'), findsOneWidget);
     final settings = _container(tester).read(settingsProvider);
     expect(settings.playbackQuality, 'auto_light');
-    expect(settings.audioQuality, 'AAC_128');
+    expect(settings.audioQuality, 'LOSSLESS');
   });
 
   testWidgets('stale stored quality falls back to light automatic', (

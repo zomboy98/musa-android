@@ -86,7 +86,9 @@ class _FilesSettingsPageState extends ConsumerState<FilesSettingsPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            context.l10n.snackbarFolderPickerFailed(context.friendlyError(error)),
+            context.l10n.snackbarFolderPickerFailed(
+              context.friendlyError(error),
+            ),
           ),
         ),
       );

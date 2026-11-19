@@ -11,6 +11,7 @@ import 'package:mornye/screens/album_screen.dart';
 import 'package:mornye/screens/extension_collection_screens.dart'
     show ExtensionArtistScreen, ExtensionAlbumScreen;
 import 'package:mornye/services/shell_navigation_service.dart';
+import 'package:mornye/utils/artist_utils.dart';
 import 'package:mornye/utils/logger.dart';
 import 'package:mornye/utils/string_utils.dart';
 import 'package:mornye/widgets/app_bottom_sheet.dart';
@@ -830,61 +831,71 @@ class ArtistTapTarget {
   const ArtistTapTarget({required this.name, this.artistId});
 }
 
+const _commaArtistNames = [
+  'Tyler, The Creator',
+  'Earth, Wind & Fire',
+  'Crosby, Stills, Nash & Young',
+  'Crosby, Stills & Nash',
+  'Emerson, Lake & Palmer',
+];
+
+final RegExp _commaArtistNamesPattern = RegExp(
+  _commaArtistNames.map(RegExp.escape).join('|'),
+  caseSensitive: false,
+);
+
+String _artistKey(String name) =>
+    name.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
+
+List<String> _splitCreditedArtists(String raw, int confirmedCount) {
+  final protectedNames = <String>[];
+  final text = raw.replaceAllMapped(_commaArtistNamesPattern, (match) {
+    protectedNames.add(match.group(0)!);
+    return '\uE000${protectedNames.length - 1}\uE001';
+  });
+  var names = splitArtistNames(text, splitAmpersand: false);
+  if (confirmedCount > 1 && names.length != confirmedCount) {
+    final withAmpersand = splitArtistNames(text);
+    if (withAmpersand.length == confirmedCount) names = withAmpersand;
+  }
+  return names
+      .map(
+        (name) => name.replaceAllMapped(
+          RegExp(r'\uE000(\d+)\uE001'),
+          (match) => protectedNames[int.parse(match.group(1)!)],
+        ),
+      )
+      .toList(growable: false);
+}
+
 List<ArtistTapTarget> buildArtistTapTargets(
   String rawArtistNames,
   String? rawArtistIds,
 ) {
-  final parsedIds = _parseArtistIds(rawArtistIds);
   final raw = rawArtistNames.trim();
   if (raw.isEmpty) return const [];
-  // Explicit feature credits can be separated without treating punctuation in
-  // a band name as evidence of additional artists.
-  final featureParts = raw
-      .split(
-        RegExp(
-          r'\s+(?:feat(?:uring|ured|ure)?|ft)\.?(?=\s|$)\s*',
-          caseSensitive: false,
-        ),
-      )
-      .map((part) => part.trim())
-      .where((part) => part.isNotEmpty)
-      .toList();
-  final List<String> parsedNames;
-  if (featureParts.length > 1) {
-    parsedNames = featureParts;
-  } else if (parsedIds.length == 1 && parsedIds.single != null) {
-    // A known identity is stronger evidence than ambiguous punctuation.
-    return [ArtistTapTarget(name: raw, artistId: parsedIds.single)];
-  } else if (parsedIds.length > 1 && parsedIds.every((id) => id != null)) {
-    final parts = raw
-        .split(RegExp(r'\s*[,;&]\s*'))
-        .map((part) => part.trim())
-        .where((part) => part.isNotEmpty)
-        .toList();
-    parsedNames = parts.length == parsedIds.length ? parts : [raw];
-  } else {
-    parsedNames = [raw];
-  }
+  final parsedIds = _parseArtistIds(rawArtistIds);
+  final confirmedCount =
+      parsedIds.length > 1 && parsedIds.every((id) => id != null)
+      ? parsedIds.length
+      : 0;
+  final parsedNames = _splitCreditedArtists(raw, confirmedCount);
   if (parsedNames.isEmpty) return const [];
 
-  final uniqueNames = <String>[];
+  final idsMatchNames = parsedIds.length == parsedNames.length;
+  final targets = <ArtistTapTarget>[];
   final seen = <String>{};
-  for (final parsed in parsedNames) {
-    final key = parsed.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
-    if (key.isEmpty || !seen.add(key)) continue;
-    uniqueNames.add(parsed);
+  for (var i = 0; i < parsedNames.length; i++) {
+    final name = parsedNames[i];
+    if (!seen.add(_artistKey(name))) continue;
+    targets.add(
+      ArtistTapTarget(
+        name: name,
+        artistId: idsMatchNames ? parsedIds[i] : null,
+      ),
+    );
   }
-  if (uniqueNames.isEmpty) return const [];
-
-  if (uniqueNames.length == 1) {
-    return [ArtistTapTarget(name: uniqueNames.first, artistId: null)];
-  }
-
-  // The flat credit and ID strings do not prove which ID belongs to which
-  // name. Resolve each selected name independently through the catalog.
-  return uniqueNames
-      .map((name) => ArtistTapTarget(name: name))
-      .toList(growable: false);
+  return targets;
 }
 
 List<String?> _parseArtistIds(String? rawArtistIds) {

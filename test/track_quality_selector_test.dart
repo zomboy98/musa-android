@@ -138,7 +138,7 @@ void main() {
       ),
       findsNothing,
     );
-    expect(find.text('FLAC'), findsOneWidget);
+    expect(find.text('FLAC'), findsWidgets);
     expect(find.text('Free Lossless'), findsOneWidget);
     expect(find.text('Audio Codec'), findsOneWidget);
   });
@@ -498,7 +498,9 @@ void main() {
     expect(factor(), closeTo(1, 0.01));
   });
 
-  testWidgets('without offers a tap opens the audio info', (tester) async {
+  testWidgets('without offers the panel shows the current quality and info', (
+    tester,
+  ) async {
     var infoOpened = 0;
     await tester.pumpWidget(
       _host(
@@ -513,8 +515,18 @@ void main() {
     );
     await tester.tap(find.byType(TrackQualitySelector));
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('track-quality-panel')), findsNothing);
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('track-quality-panel')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('track-quality-only-current')),
+      findsOneWidget,
+    );
+    expect(find.text('FLAC'), findsWidgets);
+    expect(infoOpened, 0);
+    await tester.tap(find.byKey(const ValueKey('track-quality-info')));
+    await tester.pumpAndSettle();
     expect(infoOpened, 1);
+    expect(find.byKey(const ValueKey('track-quality-panel')), findsNothing);
   });
 
   test('providers merge into one entry per format, first provider wins', () {
@@ -912,33 +924,41 @@ void main() {
   });
 
   group('glass popover', () {
-    final many = mergeProviderQualityChoices([
-      (
-        service: 'tidal',
-        options: const [
-          QualityOption(id: 'ATMOS', label: 'Dolby Atmos', kind: 'spatial'),
-          QualityOption(
-            id: 'HI_RES_LOSSLESS',
-            label: 'Hi-Res 24-bit',
-            kind: 'lossless',
-          ),
-          QualityOption(id: 'LOSSLESS', label: 'FLAC 16-bit'),
-          QualityOption(id: 'AAC_96', label: 'AAC 96 kbps', kind: 'lossy'),
-        ],
-      ),
-      (
-        service: 'amazon',
-        options: const [
-          QualityOption(id: 'mp3_320', label: 'MP3 320 kbps', kind: 'lossy'),
-        ],
-      ),
-      (
-        service: 'ytmusic-spotiflac',
-        options: const [
-          QualityOption(id: 'opus_160', label: 'Opus 160 kbps', kind: 'lossy'),
-        ],
-      ),
-    ], currentService: 'tidal', currentId: 'LOSSLESS');
+    final many = mergeProviderQualityChoices(
+      [
+        (
+          service: 'tidal',
+          options: const [
+            QualityOption(id: 'ATMOS', label: 'Dolby Atmos', kind: 'spatial'),
+            QualityOption(
+              id: 'HI_RES_LOSSLESS',
+              label: 'Hi-Res 24-bit',
+              kind: 'lossless',
+            ),
+            QualityOption(id: 'LOSSLESS', label: 'FLAC 16-bit'),
+            QualityOption(id: 'AAC_96', label: 'AAC 96 kbps', kind: 'lossy'),
+          ],
+        ),
+        (
+          service: 'amazon',
+          options: const [
+            QualityOption(id: 'mp3_320', label: 'MP3 320 kbps', kind: 'lossy'),
+          ],
+        ),
+        (
+          service: 'ytmusic-spotiflac',
+          options: const [
+            QualityOption(
+              id: 'opus_160',
+              label: 'Opus 160 kbps',
+              kind: 'lossy',
+            ),
+          ],
+        ),
+      ],
+      currentService: 'tidal',
+      currentId: 'LOSSLESS',
+    );
     final panel = find.byKey(const ValueKey('track-quality-panel'));
 
     Future<void> open(
@@ -1129,10 +1149,10 @@ void main() {
                     inside,
                   );
                   expect(
-                  contrast(text, inside),
-                  greaterThanOrEqualTo(4.5),
-                  reason: '$alpha $inside',
-                );
+                    contrast(text, inside),
+                    greaterThanOrEqualTo(4.5),
+                    reason: '$alpha $inside',
+                  );
                 }
               }
               final page = await pixels(tester, capture, [

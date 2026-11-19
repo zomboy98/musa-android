@@ -32,7 +32,6 @@ class PlayerCanvasBackground extends StatefulWidget {
   const PlayerCanvasBackground({
     super.key,
     required this.source,
-    required this.playing,
     this.veil = 0.34,
     this.veilColor = Colors.black,
     this.controllerFactory,
@@ -44,7 +43,6 @@ class PlayerCanvasBackground extends StatefulWidget {
   });
 
   final String source;
-  final bool playing;
 
   final double veil;
   final Color veilColor;
@@ -235,7 +233,7 @@ class _PlayerCanvasBackgroundState extends State<PlayerCanvasBackground>
   void _sync() {
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) return;
-    final shouldPlay = widget.playing && _foreground && !_covered;
+    final shouldPlay = _foreground && !_covered;
     if (shouldPlay && !controller.value.isPlaying) {
       unawaited(controller.play());
     } else if (!shouldPlay && controller.value.isPlaying) {

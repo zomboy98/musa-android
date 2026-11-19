@@ -23,7 +23,7 @@ void main() {
       }
       final multiple = buildArtistTapTargets('Alice & Bob', 'id-a,id-b');
       expect(multiple.map((a) => a.name), ['Alice', 'Bob']);
-      expect(multiple.map((a) => a.artistId), [null, null]);
+      expect(multiple.map((a) => a.artistId), ['id-a', 'id-b']);
       expect(
         buildArtistTapTargets('Alice feat. Bob', null).map((a) => a.name),
         ['Alice', 'Bob'],
@@ -45,6 +45,42 @@ void main() {
       expect(buildArtistTapTargets('', null), isEmpty);
     },
   );
+  test('artist credits split on commas and semicolons without IDs', () {
+    expect(
+      buildArtistTapTargets('Chuyin, Fuerza Regida', null).map((a) => a.name),
+      ['Chuyin', 'Fuerza Regida'],
+    );
+    expect(
+      buildArtistTapTargets(
+        'Calle 24, Chino Pacas, Fuerza Regida',
+        null,
+      ).map((a) => a.name),
+      ['Calle 24', 'Chino Pacas', 'Fuerza Regida'],
+    );
+    expect(buildArtistTapTargets('A; B', null).map((a) => a.name), ['A', 'B']);
+    expect(
+      buildArtistTapTargets('Tyler, The Creator', null).map((a) => a.name),
+      ['Tyler, The Creator'],
+    );
+    expect(
+      buildArtistTapTargets(
+        'Tyler, The Creator, Frank Ocean',
+        null,
+      ).map((a) => a.name),
+      ['Tyler, The Creator', 'Frank Ocean'],
+    );
+    expect(buildArtistTapTargets('Alice & Bob', null).map((a) => a.name), [
+      'Alice & Bob',
+    ]);
+  });
+  test('artist credits do not invent IDs when counts differ', () {
+    final single = buildArtistTapTargets('Chuyin, Fuerza Regida', 'id-a');
+    expect(single.map((a) => a.name), ['Chuyin', 'Fuerza Regida']);
+    expect(single.map((a) => a.artistId), [null, null]);
+    final paired = buildArtistTapTargets('Chuyin, Fuerza Regida', 'id-a,id-b');
+    expect(paired.map((a) => a.name), ['Chuyin', 'Fuerza Regida']);
+    expect(paired.map((a) => a.artistId), ['id-a', 'id-b']);
+  });
   test('catalog codec preserves full track and reads legacy queue payload', () {
     const track = Track(
       id: 'track',
@@ -225,8 +261,7 @@ void main() {
     );
     await tester.tap(find.text('Bob'));
     expect(selectedName, 'Bob');
-    // Flat multi-artist IDs cannot establish which credit owns which ID.
-    expect(selectedId, isNull);
+    expect(selectedId, 'bob-id');
     await tester.tap(find.text('Record'));
     expect(albumSelected, isTrue);
   });

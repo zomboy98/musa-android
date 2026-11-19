@@ -303,9 +303,7 @@ void main() {
         final expectedQuality = switch (policy) {
           'allowed' => 'HI_RES_LOSSLESS',
           'remembered provider quality' => 'allowed',
-          // The default is the MP3-equivalent tier: the highest lossy one up
-          // to 320 kbps, ahead of the lossless 'flac' the provider also declares.
-          'declared provider default' => 'allowed',
+          'declared provider default' => 'flac',
           _ => null,
         };
         final requests = <Map<String, dynamic>>[];

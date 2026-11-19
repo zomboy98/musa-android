@@ -172,7 +172,9 @@ class _BugLogPageState extends State<BugLogPage> {
                               context,
                               title: context.l10n.bugLogClearBugLog,
                               message: snapshot.error is FormatException
-                                  ? context.l10n.bugLogTheLogIsUnreadableItsStored
+                                  ? context
+                                        .l10n
+                                        .bugLogTheLogIsUnreadableItsStored
                                   : null,
                               confirmLabel: context.l10n.dialogClear,
                               cancelIsDefault: true,

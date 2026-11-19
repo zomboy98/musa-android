@@ -219,7 +219,8 @@ const _highResWords = [
 
 int _claimedDepth(QualityOption option) {
   final claims = _claims('${option.id} ${option.label}');
-  if (claims.depths.isNotEmpty) return claims.depths.reduce((a, b) => a > b ? a : b);
+  if (claims.depths.isNotEmpty)
+    return claims.depths.reduce((a, b) => a > b ? a : b);
   final text = '${option.id} ${option.label}'.toLowerCase();
   return _highResWords.any(text.contains) ? 24 : 16;
 }
@@ -301,11 +302,11 @@ int downloadQualityCeiling(Iterable<QualityOption> declared) {
 int downloadQualityOptionCount(Iterable<QualityOption> declared) =>
     distinctDownloadQualityOptions(declared).length;
 
-/// MP3-equivalent quality among the declared options: the highest lossy tier
-/// up to 320 kbps; else the lowest lossless one (CD); else, if every lossy
-/// tier is above that range, the lowest of them. Hi-res and spatial tiers are
-/// never the default unless nothing else is declared. Null only when nothing
-/// is declared.
+/// Default when the user never chose a tier: the lowest lossless one (CD),
+/// else a tier the provider labels as its best available, else the highest
+/// lossy tier up to 320 kbps, else the lowest lossy tier above that range.
+/// Hi-res and spatial tiers are never the default unless nothing else is
+/// declared. Null only when nothing is declared.
 QualityOption? defaultDownloadQualityOf(Iterable<QualityOption> declared) {
   final options = distinctDownloadQualityOptions(declared).toList();
   if (options.isEmpty) return null;
@@ -314,6 +315,15 @@ QualityOption? defaultDownloadQualityOf(Iterable<QualityOption> declared) {
   final pool = stereo.isEmpty ? options : stereo;
   final lossyOptions = pool.where((o) => !_isLossless(o)).toList();
   final losslessOptions = pool.where(_isLossless).toList();
+  if (losslessOptions.isNotEmpty) {
+    var best = losslessOptions.first;
+    for (final option in losslessOptions.skip(1)) {
+      if (_claimedDepth(option) < _claimedDepth(best)) best = option;
+    }
+    return best;
+  }
+  final bestAvailable = lossyOptions.where((o) => _lossyRank(o) == 0);
+  if (bestAvailable.isNotEmpty) return bestAvailable.first;
   final inRange = lossyOptions
       .where((o) => _lossyRank(o) > 0 && _lossyRank(o) <= 320)
       .toList();
@@ -321,13 +331,6 @@ QualityOption? defaultDownloadQualityOf(Iterable<QualityOption> declared) {
     var best = inRange.first;
     for (final option in inRange.skip(1)) {
       if (_lossyRank(option) > _lossyRank(best)) best = option;
-    }
-    return best;
-  }
-  if (losslessOptions.isNotEmpty) {
-    var best = losslessOptions.first;
-    for (final option in losslessOptions.skip(1)) {
-      if (_claimedDepth(option) < _claimedDepth(best)) best = option;
     }
     return best;
   }

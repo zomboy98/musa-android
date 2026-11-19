@@ -98,7 +98,7 @@ Future<void> _settle(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 50));
 }
 
-Widget _canvas(String? source, {bool playing = true}) => MaterialApp(
+Widget _canvas(String? source) => MaterialApp(
   home: SizedBox(
     width: 360,
     height: 800,
@@ -106,7 +106,6 @@ Widget _canvas(String? source, {bool playing = true}) => MaterialApp(
         ? const SizedBox()
         : PlayerCanvasBackground(
             source: source,
-            playing: playing,
             controllerFactory: _factory,
             afterOpen: _noop,
           ),
@@ -148,7 +147,6 @@ void main() {
             height: 891,
             child: PlayerCanvasBackground(
               source: '/clips/a.mp4',
-              playing: true,
               controllerFactory: _factory,
               afterOpen: _noop,
               adaptiveFit: true,
@@ -198,17 +196,20 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('canvas holds still while the song is paused', (tester) async {
-    await tester.pumpWidget(_canvas('/clips/a.mp4'));
+  testWidgets('canvas keeps looping, silent, while the song is paused', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [playbackPlayingProvider.overrideWith((ref) => false)],
+        child: _canvas('/clips/a.mp4'),
+      ),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 800));
     expect(platform.playing[1], isTrue);
-    await tester.pumpWidget(_canvas('/clips/a.mp4', playing: false));
-    await tester.pump();
-    expect(platform.playing[1], isFalse);
-    await tester.pumpWidget(_canvas('/clips/a.mp4'));
-    await tester.pump();
-    expect(platform.playing[1], isTrue);
+    expect(platform.volumes[1], 0);
+    expect(platform.looping[1], isTrue);
   });
 
   testWidgets('canvas pauses in the background and resumes', (tester) async {
@@ -248,7 +249,6 @@ void main() {
         child: MaterialApp(
           home: PlayerCanvasBackground(
             source: '/clips/a.mp4',
-            playing: true,
             controllerFactory: _factory,
             afterOpen: _noop,
           ),
@@ -269,7 +269,6 @@ void main() {
         child: MaterialApp(
           home: PlayerCanvasBackground(
             source: '/clips/a.mp4',
-            playing: true,
             controllerFactory: _factory,
             afterOpen: _noop,
           ),
@@ -289,7 +288,6 @@ void main() {
         enabled: !covered,
         child: PlayerCanvasBackground(
           source: '/clips/a.mp4',
-          playing: true,
           controllerFactory: _factory,
           afterOpen: _noop,
         ),

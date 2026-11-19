@@ -203,8 +203,11 @@ pub(super) fn probe_open_file(
     album_pending: bool,
     check: &Check<'_>,
 ) -> Result<&'static str, String> {
-    for key in ["audio_codec", "bit_depth", "sample_rate", "bitrate"] {
+    for key in ["audio_codec", "bit_depth", "sample_rate", "bitrate", "actual_duration_ms"] {
         result[key] = Value::Null;
+    }
+    if let Some(duration) = super::duration::measured_duration_ms(file) {
+        result["actual_duration_ms"] = duration.into();
     }
     let mut container = "";
     if file.seek(SeekFrom::Start(0)).is_ok() {
@@ -252,7 +255,47 @@ pub(super) fn probe_open_file(
     Ok(container)
 }
 
+const ALTERED_VERSION_MARKERS: [(&str, &[&str]); 5] = [
+    ("sped up", &["sped up", "speed up", "speedup", "spedup"]),
+    ("slowed", &["slowed"]),
+    ("nightcore", &["nightcore"]),
+    ("reverb", &["reverb"]),
+    ("8d", &["8d"]),
+];
+
+fn altered_version_markers(text: &str) -> Vec<&'static str> {
+    let normalized: String = text
+        .to_lowercase()
+        .chars()
+        .map(|c| if c.is_alphanumeric() { c } else { ' ' })
+        .collect();
+    let padded = format!(" {} ", normalized.split_whitespace().collect::<Vec<_>>().join(" "));
+    ALTERED_VERSION_MARKERS
+        .into_iter()
+        .filter(|(_, variants)| {
+            variants
+                .iter()
+                .any(|variant| padded.contains(&format!(" {variant} ")))
+        })
+        .map(|(group, _)| group)
+        .collect()
+}
+
+fn unrequested_altered_version(request: &DownloadRequest, result: &Value) -> bool {
+    let requested: Vec<_> = altered_version_markers(&request.track_name)
+        .into_iter()
+        .chain(altered_version_markers(&request.album_name))
+        .collect();
+    [text(result, "title"), text(result, "album")]
+        .into_iter()
+        .flat_map(altered_version_markers)
+        .any(|marker| !requested.contains(&marker))
+}
+
 pub(super) fn matches_track(request: &DownloadRequest, result: &Value, skip_names: bool) -> bool {
+    if unrequested_altered_version(request, result) {
+        return false;
+    }
     let exact = !request.isrc.is_empty()
         && !text(result, "isrc").is_empty()
         && request
@@ -324,3 +367,59 @@ pub(super) fn strong_identity(request: &DownloadRequest, track: &Value) -> bool 
         && (exact_identity(&request.artist_name, artist, normalize_loose_artist)
             || (artists_match(&request.artist_name, artist) && duration_matches(request, track)))
 }
+
+#[cfg(test)]
+mod altered_version_tests {
+    use super::*;
+
+    fn request(title: &str, album: &str) -> DownloadRequest {
+        DownloadRequest {
+            track_name: title.into(),
+            artist_name: "Chuyin".into(),
+            album_name: album.into(),
+            duration_ms: 201_000,
+            ..Default::default()
+        }
+    }
+
+    fn candidate(title: &str, album: &str) -> Value {
+        json!({"title": title, "artist": "Chuyin", "album": album, "duration_ms": 201_000})
+    }
+
+    #[test]
+    fn rejects_altered_versions_the_request_did_not_ask_for() {
+        let request = request("Los Locos Nunca Mueren", "Los Locos Nunca Mueren");
+        for (title, album) in [
+            ("Los Locos Nunca Mueren (Sped Up)", "Los Locos Nunca Mueren"),
+            ("Los Locos Nunca Mueren - speed up", "Los Locos Nunca Mueren"),
+            ("Los Locos Nunca Mueren (Slowed + Reverb)", "Los Locos Nunca Mueren"),
+            ("Los Locos Nunca Mueren", "Nightcore Hits"),
+            ("Los Locos Nunca Mueren [8D Audio]", "Los Locos Nunca Mueren"),
+        ] {
+            assert!(
+                !matches_track(&request, &candidate(title, album), false),
+                "{title} / {album}"
+            );
+        }
+        assert!(matches_track(
+            &request,
+            &candidate("Los Locos Nunca Mueren", "Los Locos Nunca Mueren"),
+            false
+        ));
+    }
+
+    #[test]
+    fn accepts_the_altered_version_when_it_was_requested() {
+        let request = request("Song (Sped Up)", "Album");
+        assert!(matches_track(&request, &candidate("Song (Sped Up)", "Album"), false));
+        assert!(!unrequested_altered_version(&request, &candidate("Song (Speed Up)", "Album")));
+        assert!(!matches_track(&request, &candidate("Song (Slowed)", "Album"), false));
+    }
+
+    #[test]
+    fn markers_need_whole_words() {
+        assert!(altered_version_markers("Reverberation 28D").is_empty());
+        assert_eq!(altered_version_markers("Song (8D Audio)"), ["8d"]);
+    }
+}
+

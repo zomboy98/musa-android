@@ -3,6 +3,11 @@ final RegExp _artistNameSplitPattern = RegExp(
   caseSensitive: false,
 );
 
+final RegExp _artistNameSplitPatternWithoutAmpersand = RegExp(
+  r'\s*[,;]\s*|\s+x\s+|\s+\b(?:feat(?:uring|ured|ure)?|ft|with)\.?(?=\s|$)\s*',
+  caseSensitive: false,
+);
+
 const artistTagModeJoined = 'joined';
 const artistTagModeSplitVorbis = 'split_vorbis';
 const artistTagModePrimary = 'primary';
@@ -22,12 +27,20 @@ final RegExp _primaryArtistSeparator = RegExp(
 );
 final RegExp _metadataKeyPunctuation = RegExp(r'[^A-Z0-9]');
 
-List<String> splitArtistNames(String rawArtists, {int? creditedArtistCount}) {
+List<String> splitArtistNames(
+  String rawArtists, {
+  int? creditedArtistCount,
+  bool splitAmpersand = true,
+}) {
   final raw = rawArtists.trim();
   if (raw.isEmpty) return const [];
 
   final names = raw
-      .split(_artistNameSplitPattern)
+      .split(
+        splitAmpersand
+            ? _artistNameSplitPattern
+            : _artistNameSplitPatternWithoutAmpersand,
+      )
       .map((part) => part.trim())
       .where((part) => part.isNotEmpty)
       .toList(growable: false);
