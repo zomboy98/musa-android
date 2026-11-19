@@ -34,6 +34,26 @@ QualityBadgeFormat qualityBadgeFormatFor(
   return QualityBadgeFormat.lossy;
 }
 
+class QualityCandidate {
+  const QualityCandidate(this.service, this.id);
+
+  final String service;
+  final String id;
+
+  @override
+  bool operator ==(Object other) =>
+      other is QualityCandidate &&
+      other.service.trim().toLowerCase() == service.trim().toLowerCase() &&
+      other.id.trim().toLowerCase() == id.trim().toLowerCase();
+
+  @override
+  int get hashCode =>
+      Object.hash(service.trim().toLowerCase(), id.trim().toLowerCase());
+
+  @override
+  String toString() => '$service/$id';
+}
+
 class TrackQualityChoice {
   const TrackQualityChoice({
     required this.id,
@@ -49,6 +69,7 @@ class TrackQualityChoice {
     this.detail,
     this.service,
     this.tag,
+    this.candidates = const [],
   });
 
   final String id;
@@ -68,6 +89,11 @@ class TrackQualityChoice {
   final String? service;
   final String? tag;
 
+  /// Providers that offer this format, in priority order, each with the id it
+  /// answers to. The first is the one asked first; the rest take over when it
+  /// does not give the format.
+  final List<QualityCandidate> candidates;
+
   QualityMark get mark => markOverride ?? qualityMarkForFormat(format);
 
   TrackQualityChoice copyWith({
@@ -76,6 +102,7 @@ class TrackQualityChoice {
     String? tag,
     bool? checking,
     bool? failedLast,
+    List<QualityCandidate>? candidates,
   }) => TrackQualityChoice(
     id: id,
     label: label,
@@ -90,6 +117,7 @@ class TrackQualityChoice {
     detail: detail ?? this.detail,
     service: service,
     tag: tag ?? this.tag,
+    candidates: candidates ?? this.candidates,
   );
 }
 
@@ -293,6 +321,16 @@ List<TrackQualityChoice> buildTrackQualityChoices({
   ];
 }
 
+List<QualityCandidate> _withCandidate(
+  List<QualityCandidate> list,
+  QualityCandidate next,
+) => list.contains(next) ? list : [...list, next];
+
+bool _sameMark(QualityMark a, QualityMark b) =>
+    a == b ||
+    ((a == QualityMark.hiRes || a == QualityMark.max) &&
+        (b == QualityMark.hiRes || b == QualityMark.max));
+
 class _Merged {
   _Merged(this.choice, this.rank, this.current);
 
@@ -408,7 +446,7 @@ List<TrackQualityChoice> mergeProviderQualityChoices(
           : entries
                 .where(
                   (e) =>
-                      e.choice.mark == choice.mark &&
+                      _sameMark(e.choice.mark, choice.mark) &&
                       e.choice.detail == choice.detail &&
                       (!keepProviderTwins ||
                           _sameService(e.choice.service, provider.service)) &&
@@ -420,6 +458,12 @@ List<TrackQualityChoice> mergeProviderQualityChoices(
                 .firstOrNull;
       if (twin != null) {
         twin.current = twin.current || choice.current;
+        twin.choice = twin.choice.copyWith(
+          candidates: _withCandidate(
+            twin.choice.candidates,
+            QualityCandidate(provider.service, choice.id),
+          ),
+        );
         if (twin.choice.checking && !choice.checking) {
           twin.choice = twin.choice.copyWith(checking: false);
         }
@@ -438,6 +482,7 @@ List<TrackQualityChoice> mergeProviderQualityChoices(
             service: provider.service,
             checking: choice.checking,
             failedLast: choice.failedLast,
+            candidates: [QualityCandidate(provider.service, choice.id)],
           ),
           rank,
           choice.current,
@@ -452,7 +497,7 @@ List<TrackQualityChoice> mergeProviderQualityChoices(
     final known = entries
         .where(
           (e) =>
-              e.choice.mark == bare.choice.mark &&
+              _sameMark(e.choice.mark, bare.choice.mark) &&
               e.choice.detail != null &&
               (!keepProviderTwins ||
                   _sameService(e.choice.service, bare.choice.service)),
@@ -464,17 +509,31 @@ List<TrackQualityChoice> mergeProviderQualityChoices(
     if (bare.rank <= target.rank) {
       final at = entries.indexOf(target);
       entries[at] = _Merged(
-        bare.choice.copyWith(detail: target.choice.detail),
+        bare.choice.copyWith(
+          detail: target.choice.detail,
+          candidates: [
+            ...bare.choice.candidates,
+            for (final c in target.choice.candidates)
+              if (!bare.choice.candidates.contains(c)) c,
+          ],
+        ),
         bare.rank,
         bare.current || target.current,
       );
     } else {
       target.current = target.current || bare.current;
+      target.choice = target.choice.copyWith(
+        candidates: [
+          ...target.choice.candidates,
+          for (final c in bare.choice.candidates)
+            if (!target.choice.candidates.contains(c)) c,
+        ],
+      );
     }
   }
   if (currentMark != null &&
       entries.any((e) => e.current) &&
-      !entries.any((e) => e.current && e.choice.mark == currentMark)) {
+      !entries.any((e) => e.current && _sameMark(e.choice.mark, currentMark))) {
     for (final e in entries) {
       e.current = false;
     }
@@ -483,7 +542,7 @@ List<TrackQualityChoice> mergeProviderQualityChoices(
     final held = entries.where((e) => e.current).toList();
     final betterFit = entries.where(
       (e) =>
-          e.choice.mark == currentMark &&
+          _sameMark(e.choice.mark, currentMark) &&
           e.choice.detail != null &&
           _detailsCompatible(e.choice.detail, currentDetail),
     );
@@ -501,7 +560,7 @@ List<TrackQualityChoice> mergeProviderQualityChoices(
   }
   if (!entries.any((e) => e.current) && currentMark != null) {
     final sameMark = entries
-        .where((e) => e.choice.mark == currentMark)
+        .where((e) => _sameMark(e.choice.mark, currentMark))
         .toList();
     _Merged? pick(bool Function(_Merged) test) =>
         sameMark.where(test).firstOrNull;
@@ -512,6 +571,18 @@ List<TrackQualityChoice> mergeProviderQualityChoices(
         pick((e) => _detailsCompatible(e.choice.detail, currentDetail)) ??
         sameMark.firstOrNull;
     if (chosen != null) chosen.current = true;
+  }
+  final playing = currentService == null || currentId == null
+      ? null
+      : QualityCandidate(currentService, currentId);
+  final marked = entries.where((e) => e.current).toList();
+  if (marked.length > 1) {
+    final keep =
+        marked.where((e) => e.choice.candidates.contains(playing)).firstOrNull ??
+        marked.reduce((a, b) => b.rank < a.rank ? b : a);
+    for (final e in marked) {
+      e.current = identical(e, keep);
+    }
   }
   final byDisplay = <String, List<_Merged>>{};
   for (final e in entries) {

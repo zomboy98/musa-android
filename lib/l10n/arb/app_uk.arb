@@ -838,25 +838,9 @@
   "@aboutTitle": {
     "description": "About page title"
   },
-  "aboutContributors": "Автори",
-  "@aboutContributors": {
-    "description": "Section for contributors"
-  },
   "aboutMobileDeveloper": "Розробник мобільної версії",
   "@aboutMobileDeveloper": {
     "description": "Role description for mobile dev"
-  },
-  "aboutLogoArtist": "Талановитий художник, який створив чудовий логотип нашого додатку!",
-  "@aboutLogoArtist": {
-    "description": "Role description for logo artist"
-  },
-  "aboutTranslators": "Перекладачі",
-  "@aboutTranslators": {
-    "description": "Section for translators"
-  },
-  "aboutSpecialThanks": "Особлива подяка",
-  "@aboutSpecialThanks": {
-    "description": "Section for special thanks"
   },
   "aboutLinks": "Посилання",
   "@aboutLinks": {
@@ -890,22 +874,6 @@
   "@aboutFeatureRequestSubtitle": {
     "description": "Subtitle for feature request"
   },
-  "aboutTelegramChannel": "Телеграм-канал",
-  "@aboutTelegramChannel": {
-    "description": "Link to Telegram channel"
-  },
-  "aboutTelegramChannelSubtitle": "Оголошення та оновлення",
-  "@aboutTelegramChannelSubtitle": {
-    "description": "Subtitle for Telegram channel"
-  },
-  "aboutTelegramChat": "Telegram Спільнота",
-  "@aboutTelegramChat": {
-    "description": "Link to Telegram chat group"
-  },
-  "aboutTelegramChatSubtitle": "Спілкуватися з іншими користувачами",
-  "@aboutTelegramChatSubtitle": {
-    "description": "Subtitle for Telegram chat"
-  },
   "aboutSocial": "Соціальні мережі",
   "@aboutSocial": {
     "description": "Section for social links"
@@ -917,27 +885,6 @@
   "aboutVersion": "Версія",
   "@aboutVersion": {
     "description": "Version info label"
-  },
-  "aboutBinimumDesc": "Розробник QQDL та HiFi API. Цей проєкт допоміг сформувати підтримку завантаження формату lossless.",
-  "@aboutBinimumDesc": {
-    "description": "Credit description for binimum"
-  },
-  "aboutRuubiiiiDesc": "Provided many APIs and backend resources. A huge help for the project!",
-  "aboutSachinsenalDesc": "Автор оригінального проєкту HiFi. Основа для інтеграції джерел формату lossless.",
-  "@aboutSachinsenalDesc": {
-    "description": "Credit description for sachinsenal0x64"
-  },
-  "aboutUnituneDesc": "Розв'язувач музичних посилань з відкритим кодом від Flaze, що використовується для кросплатформного підбору альтернативних варіантів.",
-  "@aboutUnituneDesc": {
-    "description": "Credit for the UniTune resolver"
-  },
-  "aboutMusicBrainzDesc": "Відкрита музична база даних, яку підтримують MetaBrainz та її спільнота; використовується для фіксації перехресних посилань.",
-  "@aboutMusicBrainzDesc": {
-    "description": "Credit for the MusicBrainz database"
-  },
-  "aboutSquiglyDesc": "Універсальний сервіс посилань на музику від Liam Macmillan, що використовується як кінцевий резервний варіант для кросплатформного визначення цільової сторінки.",
-  "@aboutSquiglyDesc": {
-    "description": "Credit for the Squigly resolver"
   },
   "aboutAppDescription": "Шукайте музичні метадані, керуйте розширеннями та впорядковуйте свою бібліотеку.",
   "@aboutAppDescription": {
@@ -7575,10 +7522,6 @@
         "type": "String"
       }
     }
-  },
-  "aboutPaxsenixSubtitle": "Проксі для текстів пісень із Musixmatch, Netease, Apple Music, QQ Music, Spotify, Deezer, YouTube, Kugou та Genius",
-  "@aboutPaxsenixSubtitle": {
-    "description": "Subtitle for Paxsenix special thanks entry on the about page"
   },
   "snackbarPlayingNext": "Відтворити далі",
   "@snackbarPlayingNext": {

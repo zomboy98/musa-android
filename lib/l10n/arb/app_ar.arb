@@ -838,25 +838,9 @@
   "@aboutTitle": {
     "description": "About page title"
   },
-  "aboutContributors": "المساهمون",
-  "@aboutContributors": {
-    "description": "Section for contributors"
-  },
   "aboutMobileDeveloper": "مطور نسخة الهاتف",
   "@aboutMobileDeveloper": {
     "description": "Role description for mobile dev"
-  },
-  "aboutLogoArtist": "الفنان الموهوب الذي أنشأ شعار التطبيق الجميل!",
-  "@aboutLogoArtist": {
-    "description": "Role description for logo artist"
-  },
-  "aboutTranslators": "المترجمون",
-  "@aboutTranslators": {
-    "description": "Section for translators"
-  },
-  "aboutSpecialThanks": "شكر خاص لِ",
-  "@aboutSpecialThanks": {
-    "description": "Section for special thanks"
   },
   "aboutLinks": "روابط",
   "@aboutLinks": {
@@ -890,22 +874,6 @@
   "@aboutFeatureRequestSubtitle": {
     "description": "Subtitle for feature request"
   },
-  "aboutTelegramChannel": "قناة تيليجرام",
-  "@aboutTelegramChannel": {
-    "description": "Link to Telegram channel"
-  },
-  "aboutTelegramChannelSubtitle": "الإعلانات والتحديثات",
-  "@aboutTelegramChannelSubtitle": {
-    "description": "Subtitle for Telegram channel"
-  },
-  "aboutTelegramChat": "مجتمع تليجرام",
-  "@aboutTelegramChat": {
-    "description": "Link to Telegram chat group"
-  },
-  "aboutTelegramChatSubtitle": "الدردشة مع المستخدمين الآخرين",
-  "@aboutTelegramChatSubtitle": {
-    "description": "Subtitle for Telegram chat"
-  },
   "aboutSocial": "التواصل الإجتماعي",
   "@aboutSocial": {
     "description": "Section for social links"
@@ -917,27 +885,6 @@
   "aboutVersion": "الإصدار",
   "@aboutVersion": {
     "description": "Version info label"
-  },
-  "aboutBinimumDesc": "منشئ API QQDL و HiFi. ساعد هذا المشروع في تشكيل دعم تحميل غير فاقد للجودة.",
-  "@aboutBinimumDesc": {
-    "description": "Credit description for binimum"
-  },
-  "aboutRuubiiiiDesc": "Provided many APIs and backend resources. A huge help for the project!",
-  "aboutSachinsenalDesc": "منشئ مشروع HiFi الأصلي. مؤسسة للتكامل بدون مصدر.",
-  "@aboutSachinsenalDesc": {
-    "description": "Credit description for sachinsenal0x64"
-  },
-  "aboutUnituneDesc": "محلل رابط الموسيقى المفتوح المصدر بواسطة Flaze، يستخدم لمطابقة الظهر عبر المنصات.",
-  "@aboutUnituneDesc": {
-    "description": "Credit for the UniTune resolver"
-  },
-  "aboutMusicBrainzDesc": "فتح قاعدة بيانات الموسيقى التي يحتفظ بها ميتابراينز ومجتمعه، تستخدم لتسجيل الإحالات المرجعية.",
-  "@aboutMusicBrainzDesc": {
-    "description": "Credit for the MusicBrainz database"
-  },
-  "aboutSquiglyDesc": "خدمة وصلة موسيقية عالمية من قبل ليام ماكميلان، تستخدم كمرجع نهائي للحلول عبر المنصات.",
-  "@aboutSquiglyDesc": {
-    "description": "Credit for the Squigly resolver"
   },
   "aboutAppDescription": "البحث عن بيانات التعريف الموسيقي، وإدارة الملحقات، وتنظيم مكتبتك.",
   "@aboutAppDescription": {
@@ -7575,10 +7522,6 @@
         "type": "String"
       }
     }
-  },
-  "aboutPaxsenixSubtitle": "Lyrics proxy for Musixmatch, Netease, Apple Music, QQ Music, Spotify, Deezer, YouTube, Kugou, and Genius",
-  "@aboutPaxsenixSubtitle": {
-    "description": "Subtitle for Paxsenix special thanks entry on the about page"
   },
   "snackbarPlayingNext": "Playing next",
   "@snackbarPlayingNext": {

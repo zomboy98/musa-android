@@ -300,10 +300,12 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
     final token = _beginSwitch(track, choice);
     final started = DateTime.now();
     final already = context.l10n.qualityPickerAlreadyPlaying;
-    final result = await requestCatalogQualitySwitchResult(
+    final candidates = choice.candidates.isEmpty
+        ? [(service: choice.service ?? '', id: choice.id)]
+        : [for (final c in choice.candidates) (service: c.service, id: c.id)];
+    final result = await requestCatalogQualitySwitchAcrossProviders(
       track,
-      choice.id,
-      service: choice.service,
+      candidates,
     );
     if (result.ok) {
       SpecialQualityAvailability.instance.clearAttemptFailure(
@@ -366,7 +368,14 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
       choice.mark,
       detail: choice.detail,
     ).name;
-    final provider = qualityServiceShortName(choice.service).isEmpty
+    final names = [
+      for (final c in choice.candidates)
+        if (qualityServiceShortName(c.service).isNotEmpty)
+          qualityServiceShortName(c.service),
+    ];
+    final provider = names.isNotEmpty
+        ? names.join(', ')
+        : qualityServiceShortName(choice.service).isEmpty
         ? choice.id
         : qualityServiceShortName(choice.service);
     final failure = result?.failure;
@@ -479,10 +488,14 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
     try {
       result = await ref
           .read(downloadQueueProvider.notifier)
-          .replaceTrackQuality(
+          .replaceTrackQualityAcrossProviders(
             track,
-            choice.service ?? service ?? 'tidal',
-            choice.id,
+            choice.candidates.isEmpty
+                ? [(service: choice.service ?? service ?? 'tidal', id: choice.id)]
+                : [
+                    for (final c in choice.candidates)
+                      (service: c.service, id: c.id),
+                  ],
             previousPath: previous,
             previousHistoryId: historyId,
             onReady: (newPath) async {
@@ -895,7 +908,6 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
             currentLabel: history?.quality,
             currentMark: mark,
             currentDetail: detail,
-            keepProviderTwins: true,
             onRuledOut: (service, id) => ruledOut.add('$service/$id'),
           );
     final choices = allChoices;

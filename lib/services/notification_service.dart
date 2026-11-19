@@ -7,6 +7,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:mornye/constants/app_info.dart';
 import 'package:mornye/l10n/app_localizations.dart';
+import 'package:mornye/services/app_update_notification.dart';
 import 'package:mornye/services/platform_bridge.dart';
 import 'package:mornye/services/verification_notification.dart';
 import 'package:mornye/utils/desktop_platform.dart';
@@ -32,6 +33,7 @@ class NotificationService {
   bool _isInitialized = false;
   Future<void>? _initialization;
   final verificationNotifications = VerificationNotificationRouter();
+  final appUpdateNotifications = AppUpdateNotificationRouter();
   bool _notificationPermissionRequested = false;
   Future<bool>? _permissionRequest;
   AppLocalizations? _l10n;
@@ -158,6 +160,7 @@ class NotificationService {
   static const int updateDownloadId = 2;
   static const int libraryScanId = 3;
   static const int verificationRequiredId = 4;
+  static const int appUpdateAvailableId = 5;
   static const String channelId = 'download_progress';
   static const String channelName = 'Download Progress';
   static const String channelDescription = 'Shows download progress for tracks';
@@ -165,6 +168,10 @@ class NotificationService {
   static const String alertChannelName = 'Download Alerts';
   static const String alertChannelDescription =
       'Important download status and actions that need attention';
+  static const String appUpdateChannelId = 'app_updates';
+  static const String appUpdateChannelName = 'Updates';
+  static const String appUpdateChannelDescription =
+      'Tells you when a new version of the app can be installed';
   static const String libraryChannelId = 'library_scan';
   static const String libraryChannelName = 'Library Scan';
   static const String libraryChannelDescription =
@@ -219,6 +226,7 @@ class NotificationService {
       settings: initSettings,
       onDidReceiveNotificationResponse: (response) {
         verificationNotifications.receive(response.payload);
+        appUpdateNotifications.receive(response.payload);
       },
     );
     // Linux delivers launch responses through initialize's callback and does
@@ -229,6 +237,7 @@ class NotificationService {
         verificationNotifications.receive(
           launch?.notificationResponse?.payload,
         );
+        appUpdateNotifications.receive(launch?.notificationResponse?.payload);
       }
     }
 
@@ -256,6 +265,17 @@ class NotificationService {
           importance: Importance.defaultImportance,
           playSound: true,
           enableVibration: true,
+        ),
+      );
+      await androidImpl?.createNotificationChannel(
+        const AndroidNotificationChannel(
+          appUpdateChannelId,
+          appUpdateChannelName,
+          description: appUpdateChannelDescription,
+          importance: Importance.low,
+          showBadge: false,
+          playSound: false,
+          enableVibration: false,
         ),
       );
       await androidImpl?.createNotificationChannel(
@@ -720,6 +740,39 @@ class NotificationService {
           'Could not download update. Try again later.',
       details: _details(playSound: true),
     );
+  }
+
+  /// Low-importance notice that a published build can be installed. It never
+  /// asks for the notification permission; without it nothing is shown.
+  Future<void> showAppUpdateAvailable({required String label}) async {
+    if (!Platform.isAndroid) return;
+    if (!_isInitialized) await initialize();
+
+    await _showSafely(
+      id: appUpdateAvailableId,
+      title: _l10n?.appUpdateNotificationTitle ?? 'Update available',
+      body:
+          _l10n?.appUpdateNotificationBody(label) ??
+          '${AppInfo.appName} $label is ready to install. Tap to see it.',
+      payload: AppUpdateNotificationRouter.payload,
+      details: const NotificationDetails(
+        android: AndroidNotificationDetails(
+          appUpdateChannelId,
+          appUpdateChannelName,
+          channelDescription: appUpdateChannelDescription,
+          importance: Importance.low,
+          priority: Priority.low,
+          playSound: false,
+          enableVibration: false,
+          autoCancel: true,
+          icon: '@drawable/ic_notification_musa_media',
+        ),
+      ),
+    );
+  }
+
+  Future<void> cancelAppUpdateAvailable() async {
+    await _notifications.cancel(id: appUpdateAvailableId);
   }
 
   Future<void> cancelUpdateNotification() async {

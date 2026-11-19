@@ -1,7 +1,7 @@
 name: mornye
 description: Mornye, extension-driven music metadata and downloads for mobile devices
 publish_to: "none"
-version: 5.3.1+2235
+version: 5.3.1+2236
 
 environment:
   sdk: ^3.10.0
@@ -189,7 +189,7 @@ flutter_launcher_icons:
     image_path: "icon_macos.png"
   windows:
     generate: true
-    image_path: "assets/brand/logo/png/mornye-badge@1x.png"
+    image_path: "icon.png"
     icon_size: 256
 
 flutter:

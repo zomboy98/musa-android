@@ -106,6 +106,7 @@ import 'package:mornye/widgets/track_detail_actions.dart';
 import 'package:mornye/widgets/profile_avatar.dart';
 import 'package:mornye/widgets/downloadable_cover.dart';
 import 'package:mornye/widgets/app_crash_banner.dart';
+import 'package:mornye/widgets/app_update_banner.dart';
 import 'package:mornye/widgets/create_playlist_sheet.dart';
 
 export 'package:mornye/screens/extension_collection_screens.dart';
@@ -1048,6 +1049,8 @@ class _HomeTabState extends ConsumerState<HomeTab>
                 _buildDesktopSearchToolbarSliver()
               else
                 _buildHeaderSliver(greeting: greeting),
+              if (_showsHome)
+                const SliverToBoxAdapter(child: AppUpdateBanner()),
               if (_showsHome) const SliverToBoxAdapter(child: AppCrashBanner()),
               _buildHomeIntroSliver(
                 sectionMotion: sectionMotion,

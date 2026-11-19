@@ -114,12 +114,12 @@ void main() {
     expect(find.text('Ahora no'), findsOneWidget);
   });
 
-  testWidgets('Ahora no recuerda la compilacion 24 horas', (tester) async {
+  testWidgets('Ahora no cierra el cuadro sin aplazar la oferta', (tester) async {
     final service = await pump(tester);
     await tester.tap(find.text('Ahora no'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Actualización disponible'), findsNothing);
-    expect(await service.isSnoozed(2233), isTrue);
+    expect(await service.isSnoozed(2233), isFalse);
   });
 
   testWidgets('Actualizar descarga, verifica y abre el instalador', (

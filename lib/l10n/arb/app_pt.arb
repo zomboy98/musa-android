@@ -234,21 +234,9 @@
   "@aboutTitle": {
     "description": "About page title"
   },
-  "aboutContributors": "Contributors",
-  "@aboutContributors": {
-    "description": "Section for contributors"
-  },
   "aboutMobileDeveloper": "Mobile version developer",
   "@aboutMobileDeveloper": {
     "description": "Role description for mobile dev"
-  },
-  "aboutLogoArtist": "The talented artist who created our beautiful app logo!",
-  "@aboutLogoArtist": {
-    "description": "Role description for logo artist"
-  },
-  "aboutSpecialThanks": "Special Thanks",
-  "@aboutSpecialThanks": {
-    "description": "Section for special thanks"
   },
   "aboutLinks": "Links",
   "@aboutLinks": {
@@ -281,15 +269,6 @@
   "aboutVersion": "Version",
   "@aboutVersion": {
     "description": "Version info label"
-  },
-  "aboutBinimumDesc": "The creator of QQDL & HiFi API. This project helped shape lossless download support.",
-  "@aboutBinimumDesc": {
-    "description": "Credit description for binimum"
-  },
-  "aboutRuubiiiiDesc": "Provided many APIs and backend resources. A huge help for the project!",
-  "aboutSachinsenalDesc": "The original HiFi project creator. A foundation for lossless-source integration.",
-  "@aboutSachinsenalDesc": {
-    "description": "Credit description for sachinsenal0x64"
   },
   "aboutAppDescription": "Search music metadata, manage extensions, and organize your library.",
   "@aboutAppDescription": {
@@ -1537,26 +1516,6 @@
   "optionsArtistTagModeSplitVorbisSubtitle": "Write one artist tag per artist for FLAC and Opus; MP3 and M4A stay joined.",
   "@optionsArtistTagModeSplitVorbisSubtitle": {
     "description": "Subtitle for split Vorbis artist tag mode"
-  },
-  "aboutTranslators": "Translators",
-  "@aboutTranslators": {
-    "description": "Section for translators"
-  },
-  "aboutTelegramChannel": "Telegram Channel",
-  "@aboutTelegramChannel": {
-    "description": "Link to Telegram channel"
-  },
-  "aboutTelegramChannelSubtitle": "Announcements and updates",
-  "@aboutTelegramChannelSubtitle": {
-    "description": "Subtitle for Telegram channel"
-  },
-  "aboutTelegramChat": "Telegram Community",
-  "@aboutTelegramChat": {
-    "description": "Link to Telegram chat group"
-  },
-  "aboutTelegramChatSubtitle": "Chat with other users",
-  "@aboutTelegramChatSubtitle": {
-    "description": "Subtitle for Telegram chat"
   },
   "aboutSocial": "Social",
   "@aboutSocial": {
@@ -4355,9 +4314,6 @@
   "optionsArtistTagModePrimarySubtitle": "Write only the first artist, like \"Artist A\", to Artist and Album Artist in every format, so players list one artist.",
   "aboutLyricsWebsite": "Lyrics website",
   "aboutServiceStatus": "Service status",
-  "aboutUnituneDesc": "Localizador de links de música de código aberto da Flaze, usado para correspondência alternativa entre plataformas.",
-  "aboutMusicBrainzDesc": "Banco de dados de música aberto mantido pela MetaBrainz e a sua comunidade, usado para registrar referências cruzadas.",
-  "aboutSquiglyDesc": "Serviço universal de links de música criado por Liam Macmillan, usado como último recurso para localizar links equivalentes entre plataformas.",
   "artistLatestRelease": "Último lançamento",
   "artistTopSongs": "Músicas mais populares",
   "setupMusicWelcome": "A tua música, num só lugar",
@@ -5020,7 +4976,6 @@
   "selectionBatchConvertConfirmMessageLosslessCapped": "Convert {count} {count, plural, =1{track} other{tracks}} to {format} ({quality})?\n\nThe output stays in a lossless codec, but bit depth/sample rate will be capped. Original files will be deleted after conversion.",
   "trackConvertActionLabelLossless": "{sourceFormat} → {targetFormat} ({quality})",
   "trackConvertActionLabelLossy": "{sourceFormat} → {targetFormat} @ {bitrate}",
-  "aboutPaxsenixSubtitle": "Lyrics proxy for Musixmatch, Netease, Apple Music, QQ Music, Spotify, Deezer, YouTube, Kugou, and Genius",
   "snackbarPlayingNext": "Playing next",
   "snackbarAddedToQueueGeneric": "Added to queue",
   "selectionDeletePlaylistsCount": "Delete {count} {count, plural, =1{playlist} other{playlists}}",

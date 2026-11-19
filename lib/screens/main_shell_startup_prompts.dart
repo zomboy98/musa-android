@@ -132,17 +132,34 @@ extension _MainShellStartupPrompts on _MainShellState {
 
     if (!ref.read(settingsProvider).checkForUpdates) return false;
 
-    final service = AppUpdateService();
-    final check = await service.checkForUpdate();
-    final offer = check.offer;
-    if (check.status != AppUpdateStatus.available ||
-        offer == null ||
-        !mounted) {
-      return false;
-    }
+    final updates = ref.read(appUpdateProvider.notifier);
+    await updates.checkAutomatically();
+    if (!mounted || !updates.startupDialogPending) return false;
 
-    unawaited(showAppUpdateDialog(context, service: service, offer: offer));
+    await updates.markOfferSeen();
+    if (!mounted) return false;
+    unawaited(startAppUpdateFlow(context, ref));
     return true;
+  }
+
+  Future<void> _checkUpdatesOnResume() async {
+    if (!_hasCheckedUpdate || !ref.read(settingsProvider).checkForUpdates) {
+      return;
+    }
+    final updates = ref.read(appUpdateProvider.notifier);
+    await updates.refreshInstalledBuild();
+    await updates.checkOnResume();
+    if (!mounted || !await updates.claimNotification()) return;
+    final offer = ref.read(appUpdateProvider).offer;
+    if (offer == null) return;
+    await NotificationService().showAppUpdateAvailable(label: offer.label);
+  }
+
+  void _openUpdatesPage() {
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).push(
+      slidePageRoute<void>(page: const MornyeSettingsTheme(child: AboutPage())),
+    );
   }
 
   Future<void> _checkAppAnnouncement() async {

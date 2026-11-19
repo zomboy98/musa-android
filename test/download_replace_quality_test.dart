@@ -329,4 +329,58 @@ void main() {
     expect(result.failure, QualityReplaceFailure.timedOut);
     expect(previous.existsSync(), isTrue);
   });
+
+  group('across providers', () {
+    const candidates = [
+      (service: 'tidal', id: 'HI_RES_LOSSLESS'),
+      (service: 'deezer', id: 'hires'),
+    ];
+
+    Future<QualityReplaceResult> chain(
+      List<void Function(_Queue queue)> steps,
+    ) async {
+      final queue = container.read(downloadQueueProvider.notifier) as _Queue;
+      final result = queue.replaceTrackQualityAcrossProviders(
+        _track,
+        candidates,
+        previousPath: previous.path,
+        previousHistoryId: 'old-row',
+        measureDuration: sameDuration,
+      );
+      for (final step in steps) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        step(queue);
+      }
+      return result;
+    }
+
+    test('the second provider serves when the first fails', () async {
+      final result = await chain([
+        (q) => q.finishLast(error: 'x', errorType: DownloadErrorType.notFound),
+        (q) => q.finishLast(path: fresh.path),
+      ]);
+      final queue = container.read(downloadQueueProvider.notifier) as _Queue;
+      expect(result.path, fresh.path);
+      expect(previous.existsSync(), isFalse);
+      expect(
+        queue.state.items.where((i) => i.service == 'deezer').length,
+        1,
+      );
+      expect(queue.state.isPaused, isFalse);
+    });
+
+    test('when all fail the previous file stays and the causes are listed',
+        () async {
+      final result = await chain([
+        (q) => q.finishLast(error: 'x', errorType: DownloadErrorType.notFound),
+        (q) => q.finishLast(error: 'y', errorType: DownloadErrorType.network),
+      ]);
+      final queue = container.read(downloadQueueProvider.notifier) as _Queue;
+      expect(result.ok, isFalse);
+      expect(previous.existsSync(), isTrue);
+      expect(result.detail, contains('tidal'));
+      expect(result.detail, contains('deezer'));
+      expect(queue.state.isPaused, isFalse);
+    });
+  });
 }

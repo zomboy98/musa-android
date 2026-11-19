@@ -619,6 +619,8 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   final Map<String, Completer<DownloadItem?>> _replaceWaiters = {};
   final Map<String, String> _failureSummaries = {};
   final Set<String> _pausePendingItemIds = {};
+  final Set<String> _foregroundItemIds = {};
+  int _foregroundChains = 0;
   final Map<String, Future<void>> _nativeCancelRequests = {};
   final Map<String, Future<void>> _activeDownloadAttempts = {};
   final Set<String> _retryingItemIds = {};
@@ -1832,6 +1834,83 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
   /// and its history row go away and the new file takes the previous file's
   /// name, leaving a single file. When the new file is not acceptable it is
   /// deleted and the previous file is kept.
+  /// Replaces the file with the format [candidates] name, asking each provider
+  /// in order and moving to the next when one fails or does not give the
+  /// format. The previous file stays until one of them finishes and validates.
+  /// The rest of the queue waits for the whole chain, not between candidates.
+  Future<QualityReplaceResult> replaceTrackQualityAcrossProviders(
+    Track track,
+    List<({String service, String id})> candidates, {
+    required String previousPath,
+    required String previousHistoryId,
+    Future<bool> Function(String newPath)? onReady,
+    Duration timeout = const Duration(minutes: 30),
+    Future<int?> Function(String path)? measureDuration,
+  }) async {
+    final tried = <String>[];
+    final causes = <String>[];
+    QualityReplaceResult? last;
+    _foregroundChains++;
+    try {
+      for (final candidate in candidates) {
+        tried.add('${candidate.service}/${candidate.id}');
+        final result = await replaceTrackQuality(
+          track,
+          candidate.service,
+          candidate.id,
+          previousPath: previousPath,
+          previousHistoryId: previousHistoryId,
+          onReady: onReady,
+          timeout: timeout,
+          measureDuration: measureDuration,
+        );
+        last = result;
+        if (result.ok) {
+          debugPrint(
+            'quality-switch: replace candidates=${tried.join(',')} '
+            'served=${candidate.service}',
+          );
+          return result;
+        }
+        if (result.failure == QualityReplaceFailure.cancelled) break;
+        final cause = [
+          result.failure?.name ?? '',
+          result.errorType?.name ?? '',
+          result.detail ?? '',
+        ].where((part) => part.isNotEmpty).join(' ');
+        causes.add('${candidate.service}: $cause');
+      }
+    } finally {
+      _foregroundChains--;
+      if (_foregroundChains == 0 && ref.mounted) {
+        final resumed = state.items
+            .where((item) => item.status == DownloadStatus.queued)
+            .length;
+        debugPrint('quality-switch: priority pause=0 resume=$resumed');
+        if (!state.isPaused && resumed > 0 && !state.isProcessing) {
+          Future.microtask(_processQueue);
+        }
+      }
+    }
+    debugPrint(
+      'quality-switch: replace candidates=${tried.join(',')} served=none',
+    );
+    final failure = last;
+    if (failure == null) {
+      return const QualityReplaceResult.failed(
+        QualityReplaceFailure.downloadFailed,
+      );
+    }
+    if (tried.length < 2 || failure.failure == QualityReplaceFailure.cancelled) {
+      return failure;
+    }
+    return QualityReplaceResult.failed(
+      QualityReplaceFailure.downloadFailed,
+      detail: shortFailureCause(causes.join('; ')),
+      summary: causes.join('; '),
+    );
+  }
+
   Future<QualityReplaceResult> replaceTrackQuality(
     Track track,
     String service,
@@ -1863,6 +1942,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     );
     updateSettings(settings);
     state = state.copyWith(items: [...state.items, item]);
+    _yieldQueueTo(id);
     _saveQueueToStorage();
     if (!state.isProcessing) {
       Future.microtask(() => _processQueue());
@@ -1876,6 +1956,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       },
     );
     _replaceWaiters.remove(id);
+    _releaseForeground(id);
     final summary = _failureSummaries.remove(id);
     if (!ref.mounted) {
       return const QualityReplaceResult.failed(QualityReplaceFailure.cancelled);
@@ -3753,10 +3834,7 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
     _startMultiProgressPolling();
     try {
       await DownloadScheduler<DownloadItem>(
-        queuedItems: () => state.queuedItems.where(
-          (item) =>
-              !_selectionBarrier && !_pausePendingItemIds.contains(item.id),
-        ),
+        queuedItems: _schedulableItems,
         idOf: (item) => item.id,
         isPaused: () => !ref.mounted || state.isPaused,
         concurrency: _queueConcurrency,

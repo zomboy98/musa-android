@@ -27,6 +27,8 @@ class ProviderTurn {
   ProviderRequestPriority _priority;
   bool _holding = false;
   bool _released = false;
+  bool _preempted = false;
+  void Function()? _onPreempt;
 
   ProviderRequestPriority get priority => _priority;
   Future<void> get granted => _granted.future;
@@ -36,6 +38,7 @@ class ProviderTurn {
   void promote(ProviderRequestPriority next) {
     if (_released || _holding || next.index >= _priority.index) return;
     _priority = next;
+    if (next == ProviderRequestPriority.foreground) _gate._preemptHolder();
   }
 
   void release() => _gate._release(this);
@@ -51,14 +54,31 @@ class ProviderRequestGate {
   ProviderTurn? _holder;
   int _serial = 0;
 
+  /// How long the last foreground request waited for its turn.
+  Duration lastForegroundWait = Duration.zero;
+
   bool get busy => _holder != null;
   int get waiting => _waiting.length;
 
   ProviderTurn request(ProviderRequestPriority priority) {
     final turn = ProviderTurn._(this, priority, _serial++);
     _waiting.add(turn);
+    if (priority == ProviderRequestPriority.foreground) _preemptHolder();
     _dispatch();
     return turn;
+  }
+
+  /// A foreground request does not wait behind a prefetch that holds the turn:
+  /// that prefetch is told to give the turn up.
+  void _preemptHolder() {
+    final holder = _holder;
+    if (holder == null ||
+        holder._preempted ||
+        holder._priority != ProviderRequestPriority.prefetch) {
+      return;
+    }
+    holder._preempted = true;
+    holder._onPreempt?.call();
   }
 
   void _dispatch() {
@@ -98,8 +118,26 @@ class ProviderRequestGate {
     Duration? maxTurn,
     FutureOr<void> Function()? onTimeout,
     void Function(ProviderTurn turn)? onRequested,
+    FutureOr<void> Function()? onPreempt,
   }) async {
+    final outcome = Completer<T>();
+    var started = false;
+    var preemptedEarly = false;
+    final requestedAt = DateTime.now();
     final turn = request(priority);
+    turn._onPreempt = () {
+      if (!started) {
+        preemptedEarly = true;
+      } else if (!outcome.isCompleted) {
+        outcome.completeError(const ProviderRequestCancelled());
+      }
+      try {
+        final pending = onPreempt?.call();
+        if (pending is Future<void>) {
+          unawaited(pending.catchError((Object _) {}));
+        }
+      } catch (_) {}
+    };
     try {
       onRequested?.call(turn);
       final ready = Completer<void>();
@@ -118,8 +156,12 @@ class ProviderRequestGate {
         );
       }
       await ready.future;
+      if (priority == ProviderRequestPriority.foreground) {
+        lastForegroundWait = DateTime.now().difference(requestedAt);
+      }
+      if (preemptedEarly) throw const ProviderRequestCancelled();
+      started = true;
       final limit = maxTurn ?? defaultMaxTurn;
-      final outcome = Completer<T>();
       final timer = Timer(limit, () {
         if (outcome.isCompleted) return;
         outcome.completeError(ProviderTurnTimeout(limit));

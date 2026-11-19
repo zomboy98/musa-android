@@ -838,25 +838,9 @@
   "@aboutTitle": {
     "description": "About page title"
   },
-  "aboutContributors": "贡献者",
-  "@aboutContributors": {
-    "description": "Section for contributors"
-  },
   "aboutMobileDeveloper": "移动版本开发者",
   "@aboutMobileDeveloper": {
     "description": "Role description for mobile dev"
-  },
-  "aboutLogoArtist": "有才华的艺术家创建了我们美丽的应用图标！",
-  "@aboutLogoArtist": {
-    "description": "Role description for logo artist"
-  },
-  "aboutTranslators": "译者",
-  "@aboutTranslators": {
-    "description": "Section for translators"
-  },
-  "aboutSpecialThanks": "特别鸣谢",
-  "@aboutSpecialThanks": {
-    "description": "Section for special thanks"
   },
   "aboutLinks": "相关链接",
   "@aboutLinks": {
@@ -890,22 +874,6 @@
   "@aboutFeatureRequestSubtitle": {
     "description": "Subtitle for feature request"
   },
-  "aboutTelegramChannel": "Telegram 频道",
-  "@aboutTelegramChannel": {
-    "description": "Link to Telegram channel"
-  },
-  "aboutTelegramChannelSubtitle": "公告和更新",
-  "@aboutTelegramChannelSubtitle": {
-    "description": "Subtitle for Telegram channel"
-  },
-  "aboutTelegramChat": "Telegram 社区",
-  "@aboutTelegramChat": {
-    "description": "Link to Telegram chat group"
-  },
-  "aboutTelegramChatSubtitle": "与其他用户聊天",
-  "@aboutTelegramChatSubtitle": {
-    "description": "Subtitle for Telegram chat"
-  },
   "aboutSocial": "社交",
   "@aboutSocial": {
     "description": "Section for social links"
@@ -917,27 +885,6 @@
   "aboutVersion": "版本",
   "@aboutVersion": {
     "description": "Version info label"
-  },
-  "aboutBinimumDesc": "QQDL 和 HiFi API 的创建者。本项目帮助完善了无损下载支持。",
-  "@aboutBinimumDesc": {
-    "description": "Credit description for binimum"
-  },
-  "aboutRuubiiiiDesc": "Provided many APIs and backend resources. A huge help for the project!",
-  "aboutSachinsenalDesc": "原 HiFi 项目创建者，为无损来源集成奠定了基础。",
-  "@aboutSachinsenalDesc": {
-    "description": "Credit description for sachinsenal0x64"
-  },
-  "aboutUnituneDesc": "Flaze开发的开源音乐链接解析器，用于跨平台回退匹配",
-  "@aboutUnituneDesc": {
-    "description": "Credit for the UniTune resolver"
-  },
-  "aboutMusicBrainzDesc": "由MetaBrainz及其社区维护的开放音乐数据库，用于录音和发行信息匹配",
-  "@aboutMusicBrainzDesc": {
-    "description": "Credit for the MusicBrainz database"
-  },
-  "aboutSquiglyDesc": "Liam Macmillan开发的通用音乐链接服务，用作最终跨平台回退匹配",
-  "@aboutSquiglyDesc": {
-    "description": "Credit for the Squigly resolver"
   },
   "aboutAppDescription": "搜索音乐元数据、管理扩展并整理你的乐库。",
   "@aboutAppDescription": {
@@ -7575,10 +7522,6 @@
         "type": "String"
       }
     }
-  },
-  "aboutPaxsenixSubtitle": "Musixmatch、网易云、Apple Music、QQ音乐、Spotify、Deezer、YouTube、酷狗、酷我、Genius 的歌词代理，歌词界的搬运工",
-  "@aboutPaxsenixSubtitle": {
-    "description": "Subtitle for Paxsenix special thanks entry on the about page"
   },
   "snackbarPlayingNext": "正在播放下一曲",
   "@snackbarPlayingNext": {

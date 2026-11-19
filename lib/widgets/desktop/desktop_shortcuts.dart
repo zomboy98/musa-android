@@ -605,7 +605,7 @@ class _DesktopMenuBarState extends ConsumerState<_DesktopMenuBar> {
             label: l10n.desktopMenuProjectPage,
             onSelected: () => unawaited(
               launchUrl(
-                Uri.parse(AppInfo.githubUrl),
+                Uri.parse(AppInfo.sourceCodeUrl),
                 mode: LaunchMode.externalApplication,
               ),
             ),

@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mornye/l10n/l10n.dart';
+import 'package:mornye/providers/app_update_provider.dart';
 import 'package:mornye/providers/user_profile_provider.dart';
 import 'package:mornye/services/shell_navigation_service.dart';
 import 'package:mornye/theme/mornye_theme.dart';
@@ -164,10 +165,16 @@ class _HomeProfileButtonState extends ConsumerState<HomeProfileButton> {
         constraints: const BoxConstraints(minWidth: 56, minHeight: 56),
         visualDensity: VisualDensity.standard,
         onPressed: _open,
-        icon: ProfileAvatar(
-          name: profile?.name ?? '',
-          photoPath: profile?.photoPath,
-          size: 44,
+        icon: Badge(
+          smallSize: 10,
+          isLabelVisible: ref.watch(
+            appUpdateProvider.select((s) => s.hasOffer),
+          ),
+          child: ProfileAvatar(
+            name: profile?.name ?? '',
+            photoPath: profile?.photoPath,
+            size: 44,
+          ),
         ),
       ),
     );

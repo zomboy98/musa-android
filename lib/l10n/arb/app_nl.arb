@@ -838,25 +838,9 @@
   "@aboutTitle": {
     "description": "About page title"
   },
-  "aboutContributors": "Contributors",
-  "@aboutContributors": {
-    "description": "Section for contributors"
-  },
   "aboutMobileDeveloper": "Mobile version developer",
   "@aboutMobileDeveloper": {
     "description": "Role description for mobile dev"
-  },
-  "aboutLogoArtist": "The talented artist who created our beautiful app logo!",
-  "@aboutLogoArtist": {
-    "description": "Role description for logo artist"
-  },
-  "aboutTranslators": "Translators",
-  "@aboutTranslators": {
-    "description": "Section for translators"
-  },
-  "aboutSpecialThanks": "Special Thanks",
-  "@aboutSpecialThanks": {
-    "description": "Section for special thanks"
   },
   "aboutLinks": "Links",
   "@aboutLinks": {
@@ -890,22 +874,6 @@
   "@aboutFeatureRequestSubtitle": {
     "description": "Subtitle for feature request"
   },
-  "aboutTelegramChannel": "Telegram Channel",
-  "@aboutTelegramChannel": {
-    "description": "Link to Telegram channel"
-  },
-  "aboutTelegramChannelSubtitle": "Announcements and updates",
-  "@aboutTelegramChannelSubtitle": {
-    "description": "Subtitle for Telegram channel"
-  },
-  "aboutTelegramChat": "Telegram Community",
-  "@aboutTelegramChat": {
-    "description": "Link to Telegram chat group"
-  },
-  "aboutTelegramChatSubtitle": "Chat with other users",
-  "@aboutTelegramChatSubtitle": {
-    "description": "Subtitle for Telegram chat"
-  },
   "aboutSocial": "Social",
   "@aboutSocial": {
     "description": "Section for social links"
@@ -917,27 +885,6 @@
   "aboutVersion": "Version",
   "@aboutVersion": {
     "description": "Version info label"
-  },
-  "aboutBinimumDesc": "The creator of QQDL & HiFi API. This project helped shape lossless download support.",
-  "@aboutBinimumDesc": {
-    "description": "Credit description for binimum"
-  },
-  "aboutRuubiiiiDesc": "Provided many APIs and backend resources. A huge help for the project!",
-  "aboutSachinsenalDesc": "The original HiFi project creator. A foundation for lossless-source integration.",
-  "@aboutSachinsenalDesc": {
-    "description": "Credit description for sachinsenal0x64"
-  },
-  "aboutUnituneDesc": "Open-source music link resolver by Flaze, used for cross-platform fallback matching.",
-  "@aboutUnituneDesc": {
-    "description": "Credit for the UniTune resolver"
-  },
-  "aboutMusicBrainzDesc": "Open music database maintained by MetaBrainz and its community, used for recording cross-references.",
-  "@aboutMusicBrainzDesc": {
-    "description": "Credit for the MusicBrainz database"
-  },
-  "aboutSquiglyDesc": "Universal music link service by Liam Macmillan, used as a final cross-platform resolver fallback.",
-  "@aboutSquiglyDesc": {
-    "description": "Credit for the Squigly resolver"
   },
   "aboutAppDescription": "Search music metadata, manage extensions, and organize your library.",
   "@aboutAppDescription": {
@@ -7575,10 +7522,6 @@
         "type": "String"
       }
     }
-  },
-  "aboutPaxsenixSubtitle": "Lyrics proxy for Musixmatch, Netease, Apple Music, QQ Music, Spotify, Deezer, YouTube, Kugou, and Genius",
-  "@aboutPaxsenixSubtitle": {
-    "description": "Subtitle for Paxsenix special thanks entry on the about page"
   },
   "snackbarPlayingNext": "Playing next",
   "@snackbarPlayingNext": {

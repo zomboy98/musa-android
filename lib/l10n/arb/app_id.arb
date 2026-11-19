@@ -744,25 +744,9 @@
   "@aboutTitle": {
     "description": "About page title"
   },
-  "aboutContributors": "Kontributor",
-  "@aboutContributors": {
-    "description": "Section for contributors"
-  },
   "aboutMobileDeveloper": "Sang developer utama",
   "@aboutMobileDeveloper": {
     "description": "Role description for mobile dev"
-  },
-  "aboutLogoArtist": "Artist berbakat yang membuat logo indah untuk aplikasi kami!",
-  "@aboutLogoArtist": {
-    "description": "Role description for logo artist"
-  },
-  "aboutTranslators": "Penerjemah",
-  "@aboutTranslators": {
-    "description": "Section for translators"
-  },
-  "aboutSpecialThanks": "Terima Kasih Khusus",
-  "@aboutSpecialThanks": {
-    "description": "Section for special thanks"
   },
   "aboutLinks": "Link",
   "@aboutLinks": {
@@ -796,22 +780,6 @@
   "@aboutFeatureRequestSubtitle": {
     "description": "Subtitle for feature request"
   },
-  "aboutTelegramChannel": "Channel Telegram",
-  "@aboutTelegramChannel": {
-    "description": "Link to Telegram channel"
-  },
-  "aboutTelegramChannelSubtitle": "Pengumuman dan update",
-  "@aboutTelegramChannelSubtitle": {
-    "description": "Subtitle for Telegram channel"
-  },
-  "aboutTelegramChat": "Komunitas Telegram",
-  "@aboutTelegramChat": {
-    "description": "Link to Telegram chat group"
-  },
-  "aboutTelegramChatSubtitle": "Chat dengan pengguna lain",
-  "@aboutTelegramChatSubtitle": {
-    "description": "Subtitle for Telegram chat"
-  },
   "aboutSocial": "Media Sosial",
   "@aboutSocial": {
     "description": "Section for social links"
@@ -823,27 +791,6 @@
   "aboutVersion": "Versi",
   "@aboutVersion": {
     "description": "Version info label"
-  },
-  "aboutBinimumDesc": "Pembuat API QQDL & HiFi. Proyeknya membantu membuat dukungan download lossless.",
-  "@aboutBinimumDesc": {
-    "description": "Credit description for binimum"
-  },
-  "aboutRuubiiiiDesc": "Provided many APIs and backend resources. A huge help for the project!",
-  "aboutSachinsenalDesc": "Pembuat proyek HiFi asli. Sebuah fondasi untuk integrasi sumber lossless.",
-  "@aboutSachinsenalDesc": {
-    "description": "Credit description for sachinsenal0x64"
-  },
-  "aboutUnituneDesc": "Resolver link musik open-source oleh Flaze, untuk melakukan match link cadangan cross-platform.",
-  "@aboutUnituneDesc": {
-    "description": "Credit for the UniTune resolver"
-  },
-  "aboutMusicBrainzDesc": "Database musik terbuka yang dirawat oleh MetaBrainz dan komunitasnya, untuk merekam cross-reference.",
-  "@aboutMusicBrainzDesc": {
-    "description": "Credit for the MusicBrainz database"
-  },
-  "aboutSquiglyDesc": "Layanan link musik universal oleh Liam Macmillan, digunakan untuk resolver fallback cross-platform final.",
-  "@aboutSquiglyDesc": {
-    "description": "Credit for the Squigly resolver"
   },
   "aboutAppDescription": "Telusuri metadata musik, kelola ekstensi, dan atur Koleksimu.",
   "@aboutAppDescription": {
@@ -6894,10 +6841,6 @@
         "type": "String"
       }
     }
-  },
-  "aboutPaxsenixSubtitle": "Proxy lirik untuk Musixmatch, Netease, Apple Music, QQ Music, Spotify, Deezer, YouTube, Kugou, dan Genius",
-  "@aboutPaxsenixSubtitle": {
-    "description": "Subtitle for Paxsenix special thanks entry on the about page"
   },
   "snackbarPlayingNext": "Memutar lagu berikutnya",
   "@snackbarPlayingNext": {

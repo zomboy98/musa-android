@@ -286,21 +286,9 @@
   "@aboutTitle": {
     "description": "About page title"
   },
-  "aboutContributors": "Colaboradores",
-  "@aboutContributors": {
-    "description": "Section for contributors"
-  },
   "aboutMobileDeveloper": "Desarrollador de versiones móviles",
   "@aboutMobileDeveloper": {
     "description": "Role description for mobile dev"
-  },
-  "aboutLogoArtist": "¡El talentoso artista que creó el hermoso logo de nuestra app!",
-  "@aboutLogoArtist": {
-    "description": "Role description for logo artist"
-  },
-  "aboutSpecialThanks": "Agradecimientos especiales",
-  "@aboutSpecialThanks": {
-    "description": "Section for special thanks"
   },
   "aboutLinks": "Enlaces",
   "@aboutLinks": {
@@ -333,18 +321,6 @@
   "aboutVersion": "Versión",
   "@aboutVersion": {
     "description": "Version info label"
-  },
-  "aboutBinimumDesc": "El creador de QQDL & HiFi API. Este proyecto ayudó a impulsar el soporte para descargas sin pérdida de calidad.",
-  "@aboutBinimumDesc": {
-    "description": "Credit description for binimum"
-  },
-  "aboutRuubiiiiDesc": "Aportó muchas API y recursos de servidor. Una gran ayuda para el proyecto.",
-  "@aboutRuubiiiiDesc": {
-    "description": "Credit description for Ruubiiiii"
-  },
-  "aboutSachinsenalDesc": "El creador del proyecto HiFi original. Sentó las bases para la integración de fuentes de audio sin pérdida de calidad.",
-  "@aboutSachinsenalDesc": {
-    "description": "Credit description for sachinsenal0x64"
   },
   "aboutAppDescription": "Busca información musical, gestiona complementos y organiza tu biblioteca.",
   "@aboutAppDescription": {
@@ -1644,26 +1620,6 @@
   "optionsArtistTagModeSplitVorbisSubtitle": "Escribe una etiqueta de artista por cada artista en FLAC y Opus; MP3 y M4A se mantienen combinados.",
   "@optionsArtistTagModeSplitVorbisSubtitle": {
     "description": "Subtitle for split Vorbis artist tag mode"
-  },
-  "aboutTranslators": "Traductores",
-  "@aboutTranslators": {
-    "description": "Section for translators"
-  },
-  "aboutTelegramChannel": "Canal de Telegram",
-  "@aboutTelegramChannel": {
-    "description": "Link to Telegram channel"
-  },
-  "aboutTelegramChannelSubtitle": "Anuncios y actualizaciones",
-  "@aboutTelegramChannelSubtitle": {
-    "description": "Subtitle for Telegram channel"
-  },
-  "aboutTelegramChat": "Comunidad de Telegram",
-  "@aboutTelegramChat": {
-    "description": "Link to Telegram chat group"
-  },
-  "aboutTelegramChatSubtitle": "Chatear con otros usuarios",
-  "@aboutTelegramChatSubtitle": {
-    "description": "Subtitle for Telegram chat"
   },
   "aboutSocial": "Redes sociales",
   "@aboutSocial": {
@@ -4990,9 +4946,6 @@
   "optionsArtistTagModePrimary": "Solo el artista principal",
   "optionsArtistTagModePrimarySubtitle": "Escribe solo el primer artista, por ejemplo, «Artista A», en los campos «Artista» y «Artista del álbum» en todos los formatos, para que los reproductores muestren un solo artista.",
   "aboutLyricsWebsite": "Sitio web de Letras",
-  "aboutUnituneDesc": "Resolvedor de links de música por Flaze, usado para coincidencias multiplataforma de respaldo.",
-  "aboutMusicBrainzDesc": "Base de datos abierta mantenida por MetaBrainz y su comunidad, usado para grabar multi-referencias.",
-  "aboutSquiglyDesc": "Servicio de enlaces de música universal por Liam Macmillan, usado como resolvedor multiplataforma final de respaldo.",
   "setupNearbyEnable": "Permitir dispositivos cercanos",
   "setupNearbyDescription": "MUSA Link lo usa para encontrar tu ordenador en la misma red, y el almacenamiento en red lo necesita para llegar a un servidor en casa.",
   "setupNearbyGranted": "¡Dispositivos cercanos permitidos!",
@@ -5458,7 +5411,6 @@
   "selectionBatchConvertConfirmMessageLosslessCapped": "¿Convertir {count} {count, plural, =1{pista} other{pistas}} a {format} ({quality})?\n\nEl archivo de salida se mantendrá en un códec sin pérdida, pero la profundidad de bits y la frecuencia de muestreo se limitarán. Los archivos originales se eliminarán después de la conversión.",
   "trackConvertActionLabelLossless": "{sourceFormat} → {targetFormat} ({quality})",
   "trackConvertActionLabelLossy": "{sourceFormat} → {targetFormat} a {bitrate}",
-  "aboutPaxsenixSubtitle": "Servicio de letras de canciones para Musixmatch, Netease, Apple Music, QQ Music, Spotify, Deezer, YouTube, Kugou y Genius",
   "snackbarPlayingNext": "Próxima reproducción",
   "selectionDeletePlaylistsCount": "Eliminar {count} {count, plural, =1{lista de reproducción} other{listas de reproducción}}",
   "actionShuffle": "Reproducción aleatoria",
@@ -6825,5 +6777,18 @@
   "appUpdateCheck": "Buscar actualizaciones",
   "appUpdateChecking": "Buscando…",
   "appUpdateUpToDate": "MUSA está al día.",
-  "appUpdateCheckFailed": "No se pudo buscar actualizaciones. Inténtalo más tarde."
+  "appUpdateCheckFailed": "No se pudo buscar actualizaciones. Inténtalo más tarde.",
+  "appUpdateSectionTitle": "Actualizaciones",
+  "appUpdateInstalledVersion": "Versión instalada",
+  "appUpdateInstalledValue": "{label} (compilación {build})",
+  "appUpdateLastChecked": "Última consulta: {when}",
+  "appUpdateNeverChecked": "Aún sin consultar",
+  "appUpdateAvailableLabel": "Actualización disponible: {label}",
+  "appUpdatePublishedOn": "Publicada el {date}",
+  "appUpdateOfferedLastKnown": "No se pudo consultar ahora. Este es el último resultado conocido.",
+  "appUpdateBannerText": "Actualización disponible · {label}",
+  "appUpdateDismiss": "Ocultar por ahora",
+  "appUpdateNotificationTitle": "Actualización disponible",
+  "appUpdateNotificationBody": "{label} ya se puede instalar. Toca para verla.",
+  "appUpdateDownloading": "Descargando la actualización…"
 }

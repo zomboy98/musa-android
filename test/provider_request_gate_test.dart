@@ -42,6 +42,7 @@ Future<void> _settle() async {
 }
 
 void main() {
+  _preemptTests();
   test('nunca hay dos peticiones en curso a la vez', () async {
     final gate = ProviderRequestGate();
     final probe = _Probe();
@@ -443,6 +444,100 @@ void main() {
       ]);
       cooldown.noteRateLimited('tidal', 10);
       expect(cooldown.remaining('tidal'), const Duration(seconds: 900));
+    });
+  });
+}
+
+void _preemptTests() {
+  group('foreground over prefetch', () {
+    test('a foreground request takes the turn from a running prefetch', () async {
+      final gate = ProviderRequestGate();
+      final release = Completer<void>();
+      var preempted = false;
+      final prefetch = gate.run<String>(
+        () async {
+          await release.future;
+          return 'prefetch';
+        },
+        priority: ProviderRequestPriority.prefetch,
+        onPreempt: () {
+          preempted = true;
+          if (!release.isCompleted) release.complete();
+        },
+      );
+      final prefetchOutcome = prefetch.then<Object>(
+        (v) => v,
+        onError: (Object e) => e,
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(gate.busy, isTrue);
+      final foreground = await gate.run<String>(
+        () async => 'manual',
+        priority: ProviderRequestPriority.foreground,
+      );
+      expect(foreground, 'manual');
+      expect(preempted, isTrue);
+      expect(await prefetchOutcome, isA<ProviderRequestCancelled>());
+    });
+
+    test('a foreground request does not interrupt a queue download', () async {
+      final gate = ProviderRequestGate();
+      final release = Completer<void>();
+      var preempted = false;
+      final queued = gate.run<String>(
+        () async {
+          await release.future;
+          return 'queued';
+        },
+        priority: ProviderRequestPriority.queue,
+        onPreempt: () => preempted = true,
+      );
+      await Future<void>.delayed(Duration.zero);
+      var done = false;
+      final foreground = gate
+          .run<String>(
+            () async => 'manual',
+            priority: ProviderRequestPriority.foreground,
+          )
+          .then((v) {
+            done = true;
+            return v;
+          });
+      await Future<void>.delayed(Duration.zero);
+      expect(preempted, isFalse);
+      expect(done, isFalse);
+      release.complete();
+      expect(await queued, 'queued');
+      expect(await foreground, 'manual');
+    });
+
+    test('promoting a waiting prefetch also yields the running one', () async {
+      final gate = ProviderRequestGate();
+      final release = Completer<void>();
+      var preempted = false;
+      final first = gate.run<String>(
+        () async {
+          await release.future;
+          return 'a';
+        },
+        priority: ProviderRequestPriority.prefetch,
+        onPreempt: () {
+          preempted = true;
+          release.complete();
+        },
+      );
+      final firstOutcome = first.then<Object>((v) => v, onError: (Object e) => e);
+      await Future<void>.delayed(Duration.zero);
+      final second = gate.run<String>(
+        () async => 'b',
+        priority: ProviderRequestPriority.prefetch,
+        onRequested: (turn) => Timer.run(
+          () => turn.promote(ProviderRequestPriority.foreground),
+        ),
+      );
+      expect(await second, 'b');
+      expect(preempted, isTrue);
+      expect(await firstOutcome, isA<ProviderRequestCancelled>());
     });
   });
 }

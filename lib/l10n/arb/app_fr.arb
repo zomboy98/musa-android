@@ -838,25 +838,9 @@
   "@aboutTitle": {
     "description": "About page title"
   },
-  "aboutContributors": "Contributeurs",
-  "@aboutContributors": {
-    "description": "Section for contributors"
-  },
   "aboutMobileDeveloper": "Développeur de la version mobile",
   "@aboutMobileDeveloper": {
     "description": "Role description for mobile dev"
-  },
-  "aboutLogoArtist": "Le talentueux artiste qui a créé le magnifique logo de notre application !",
-  "@aboutLogoArtist": {
-    "description": "Role description for logo artist"
-  },
-  "aboutTranslators": "Traducteurs",
-  "@aboutTranslators": {
-    "description": "Section for translators"
-  },
-  "aboutSpecialThanks": "Remerciements particuliers",
-  "@aboutSpecialThanks": {
-    "description": "Section for special thanks"
   },
   "aboutLinks": "Liens",
   "@aboutLinks": {
@@ -890,22 +874,6 @@
   "@aboutFeatureRequestSubtitle": {
     "description": "Subtitle for feature request"
   },
-  "aboutTelegramChannel": "Chaîne Telegram",
-  "@aboutTelegramChannel": {
-    "description": "Link to Telegram channel"
-  },
-  "aboutTelegramChannelSubtitle": "Annonces et mises à jour",
-  "@aboutTelegramChannelSubtitle": {
-    "description": "Subtitle for Telegram channel"
-  },
-  "aboutTelegramChat": "Communauté Telegram",
-  "@aboutTelegramChat": {
-    "description": "Link to Telegram chat group"
-  },
-  "aboutTelegramChatSubtitle": "Discutez avec d'autres utilisateurs",
-  "@aboutTelegramChatSubtitle": {
-    "description": "Subtitle for Telegram chat"
-  },
   "aboutSocial": "Réseaux sociaux",
   "@aboutSocial": {
     "description": "Section for social links"
@@ -917,27 +885,6 @@
   "aboutVersion": "Version",
   "@aboutVersion": {
     "description": "Version info label"
-  },
-  "aboutBinimumDesc": "Créateur de QQDL et de l'API HiFi. Ce projet a contribué à mettre en place la prise en charge des téléchargements sans perte.",
-  "@aboutBinimumDesc": {
-    "description": "Credit description for binimum"
-  },
-  "aboutRuubiiiiDesc": "Provided many APIs and backend resources. A huge help for the project!",
-  "aboutSachinsenalDesc": "Le créateur du projet HiFi original. Une base pour l'intégration de sources sans perte.",
-  "@aboutSachinsenalDesc": {
-    "description": "Credit description for sachinsenal0x64"
-  },
-  "aboutUnituneDesc": "Résolveur de liens musicaux open source développé par Flaze, utilisé pour la correspondance de repli multiplateforme.",
-  "@aboutUnituneDesc": {
-    "description": "Credit for the UniTune resolver"
-  },
-  "aboutMusicBrainzDesc": "Base de données musicale ouverte gérée par MetaBrainz et sa communauté, utilisée pour enregistrer des références croisées.",
-  "@aboutMusicBrainzDesc": {
-    "description": "Credit for the MusicBrainz database"
-  },
-  "aboutSquiglyDesc": "Service de liens musicaux universel développé par Liam Macmillan, utilisé comme solution de secours finale pour la résolution multiplateforme.",
-  "@aboutSquiglyDesc": {
-    "description": "Credit for the Squigly resolver"
   },
   "aboutAppDescription": "Recherchez des métadonnées musicales, gérez les extensions et organisez votre bibliothèque.",
   "@aboutAppDescription": {
@@ -7575,10 +7522,6 @@
         "type": "String"
       }
     }
-  },
-  "aboutPaxsenixSubtitle": "Proxy de paroles pour Musixmatch, Netease, Apple Music, QQ Music, Spotify, Deezer, YouTube, Kugou et Genius",
-  "@aboutPaxsenixSubtitle": {
-    "description": "Subtitle for Paxsenix special thanks entry on the about page"
   },
   "snackbarPlayingNext": "Prochainement",
   "@snackbarPlayingNext": {

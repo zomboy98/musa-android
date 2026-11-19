@@ -57,6 +57,7 @@ import 'package:mornye/services/playable_media.dart';
 import 'package:mornye/services/catalog_playback.dart';
 import 'package:mornye/services/provider_cooldown.dart';
 import 'package:mornye/services/download_queue_pacing.dart';
+import 'package:mornye/services/provider_request_gate.dart';
 import 'package:mornye/services/quality_switch_result.dart';
 import 'package:mornye/services/prefetch_planner.dart';
 import 'package:mornye/services/upcoming_prefetcher.dart';
@@ -172,6 +173,22 @@ Future<QualitySwitchResult> requestCatalogQualitySwitchResult(
           qualityId,
           service: service,
         ) ??
+        const QualitySwitchResult.failed(QualitySwitchFailure.other);
+  } catch (error) {
+    _log.w('Quality switch unavailable: $error');
+    return const QualitySwitchResult.failed(QualitySwitchFailure.other);
+  }
+}
+
+/// Switches to one format trying [candidates] in order; see
+/// [MusicPlayerHandler.switchCatalogQualityAcrossProviders].
+Future<QualitySwitchResult> requestCatalogQualitySwitchAcrossProviders(
+  Track track,
+  List<({String service, String id})> candidates,
+) async {
+  try {
+    return await musicPlayerRuntime.handler
+            ?.switchCatalogQualityAcrossProviders(track, candidates) ??
         const QualitySwitchResult.failed(QualitySwitchFailure.other);
   } catch (error) {
     _log.w('Quality switch unavailable: $error');
@@ -4092,6 +4109,49 @@ class MusicPlayerHandler extends BaseAudioHandler
     service: service,
   )).ok;
 
+  void _qualityStage(Stopwatch watch, String stage) =>
+      debugPrint('quality-switch: t=${watch.elapsedMilliseconds} stage=$stage');
+
+  /// Switches the playing song to the format [candidates] name, asking the
+  /// providers in the order given and moving to the next one only when the
+  /// previous does not give that format. It never settles for another format.
+  Future<QualitySwitchResult> switchCatalogQualityAcrossProviders(
+    Track track,
+    List<({String service, String id})> candidates,
+  ) async {
+    final tried = <String>[];
+    QualitySwitchResult? last;
+    for (final candidate in candidates) {
+      tried.add('${candidate.service}/${candidate.id}');
+      final result = await switchCatalogQualityResult(
+        track,
+        candidate.id,
+        service: candidate.service,
+      );
+      last = result;
+      if (result.ok) {
+        debugPrint(
+          'quality-switch: format=${candidate.id} '
+          'provider=${candidate.service} tried=${tried.join(',')}',
+        );
+        return result;
+      }
+      final failure = result.failure;
+      if (failure != QualitySwitchFailure.unavailable &&
+          failure != QualitySwitchFailure.timedOut &&
+          failure != QualitySwitchFailure.unsupportedFormat &&
+          failure != QualitySwitchFailure.other) {
+        break;
+      }
+    }
+    debugPrint(
+      'quality-switch: format=${candidates.isEmpty ? '' : candidates.first.id} '
+      'provider=none tried=${tried.join(',')}',
+    );
+    return last ??
+        const QualitySwitchResult.failed(QualitySwitchFailure.unavailable);
+  }
+
   Future<QualitySwitchResult> switchCatalogQualityResult(
     Track track,
     String qualityId, {
@@ -4106,7 +4166,35 @@ class MusicPlayerHandler extends BaseAudioHandler
       );
       return QualitySwitchResult.failed(guard);
     }
-    final current = currentCatalogTrack!;
+    final watch = Stopwatch()..start();
+    _upcoming.prefetcher.hold();
+    try {
+      return await _switchCatalogQualityHeld(
+        track,
+        qualityId,
+        service,
+        watch,
+      );
+    } finally {
+      if (!_disposed) _upcoming.refresh();
+    }
+  }
+
+  Future<QualitySwitchResult> _switchCatalogQualityHeld(
+    Track track,
+    String qualityId,
+    String? service,
+    Stopwatch watch,
+  ) async {
+    final guard = _qualitySwitchGuard(track);
+    if (guard != null) {
+      debugPrint(
+        'quality-switch: guard=${guard.name} index=$_index '
+        'queue=${_media.length} ready=$_sourceReady cast=${_cast.active} '
+        'direct=${_player.isDirect} catalog=${currentCatalogTrack != null}',
+      );
+      return QualitySwitchResult.failed(guard);
+    }
     final previous = _catalogPlayback.qualityOverrideFor(track);
     final previousService = _catalogPlayback.serviceOverrideFor(track);
     final previousRequest = _catalogPlayback.playingRequest(track);
@@ -4115,6 +4203,7 @@ class MusicPlayerHandler extends BaseAudioHandler
         track,
         qualityId,
         service,
+        watch,
         previous: previous,
         previousService: previousService,
         previousRequest: previousRequest,
@@ -4128,6 +4217,10 @@ class MusicPlayerHandler extends BaseAudioHandler
         relay: false,
         engineFallback: false,
       );
+      debugPrint(
+        'quality-switch: t=${ProviderRequestGate.instance.lastForegroundWait.inMilliseconds} stage=gate',
+      );
+      _qualityStage(watch, 'download');
       if (lease.qualityMetadata['quality_fallback_used'] == true) {
         final degraded = lease;
         lease = null;
@@ -4149,7 +4242,9 @@ class MusicPlayerHandler extends BaseAudioHandler
           );
         }
       }
-      if (!await switchPlaybackSource(track, lease.path)) {
+      final handedOff = await switchPlaybackSource(track, lease.path);
+      _qualityStage(watch, 'handoff');
+      if (!handedOff) {
         debugPrint('quality-switch: guard=handoffRejected');
         await lease.release();
         _catalogPlayback.setQualityOverride(
@@ -4235,7 +4330,8 @@ class MusicPlayerHandler extends BaseAudioHandler
   Future<QualitySwitchResult> _switchSpatialQuality(
     Track track,
     String qualityId,
-    String? service, {
+    String? service,
+    Stopwatch watch, {
     required String? previous,
     required String? previousService,
     required ({String service, String quality})? previousRequest,
@@ -4250,6 +4346,7 @@ class MusicPlayerHandler extends BaseAudioHandler
     }
 
     final candidates = await _spatialCandidates(qualityId, service);
+    _qualityStage(watch, 'probe');
     final started = DateTime.now();
     CatalogAudioLease? lease;
     Object? lastError;
@@ -4301,8 +4398,11 @@ class MusicPlayerHandler extends BaseAudioHandler
                   : null,
             );
     }
+    _qualityStage(watch, 'download');
     try {
-      if (!await switchPlaybackSource(track, lease.path)) {
+      final handedOff = await switchPlaybackSource(track, lease.path);
+      _qualityStage(watch, 'handoff');
+      if (!handedOff) {
         debugPrint('quality-switch: guard=handoffRejected');
         await lease.release();
         restore();

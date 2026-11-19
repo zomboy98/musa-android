@@ -41,6 +41,50 @@ class AppUpdateOffer {
   final String sha256;
   final int sizeBytes;
   final String publishedAt;
+
+  Map<String, Object> toJson() => {
+    'label': label,
+    'version': version,
+    'build': build,
+    'channel': channel,
+    'notes': notes,
+    'apk_url': apkUrl.toString(),
+    'sha256': sha256,
+    'size_bytes': sizeBytes,
+    'published_at': publishedAt,
+  };
+
+  /// Reads an offer saved by [toJson]; anything altered or invalid is null.
+  static AppUpdateOffer? fromJson(Object? json) {
+    if (json is! Map) return null;
+    final label = json['label'];
+    final build = json['build'];
+    final size = json['size_bytes'];
+    final sha = json['sha256'];
+    final apk = json['apk_url'];
+    if (label is! String || label.isEmpty || label.length > 80) return null;
+    if (build is! int || build <= 0 || size is! int || size <= 0) return null;
+    if (sha is! String || !_sha256Pattern.hasMatch(sha)) return null;
+    if (apk is! String) return null;
+    final uri = Uri.tryParse(apk);
+    if (uri == null || !isAllowedAppUpdateApkUrl(uri)) return null;
+    String text(String key) {
+      final value = json[key];
+      return value is String ? value : '';
+    }
+
+    return AppUpdateOffer(
+      label: label,
+      version: text('version'),
+      build: build,
+      channel: text('channel'),
+      notes: text('notes'),
+      apkUrl: uri,
+      sha256: sha,
+      sizeBytes: size,
+      publishedAt: text('published_at'),
+    );
+  }
 }
 
 /// Public label for the `etiqueta` field: `0.9 beta 3` reads `v0.9 beta 3`.
@@ -241,6 +285,8 @@ class AppUpdateService {
   final DateTime Function() _now;
   final Uri _manifestUrl;
   final bool _enabled;
+
+  Future<int?> installedBuild() => _platform.installedBuild();
 
   Future<AppUpdateCheck> checkForUpdate({bool ignoreSnooze = false}) async {
     const unavailable = AppUpdateCheck(AppUpdateStatus.unavailable);

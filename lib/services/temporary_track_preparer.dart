@@ -638,6 +638,7 @@ class TemporaryTrackPreparer {
         cancelled: task.cancelledSignal.future,
         maxTurn: timeout + const Duration(seconds: 15),
         onTimeout: () => cancelDownload(task.transferId),
+        onPreempt: () => cancelDownload(task.transferId),
         onRequested: (turn) => task.turn = turn,
       );
     } on ProviderRequestCancelled {

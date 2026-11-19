@@ -1,6 +1,6 @@
 /// Public label shown to people. It is display text only: the real
 /// versionName and versionCode keep following pubspec.yaml.
-const String musaPublicLabel = 'v0.9 beta 4';
+const String musaPublicLabel = 'v0.9 beta 5';
 
 /// Turns a public version such as `0.9.0-beta.2` into its label
 /// (`v0.9 beta 2`); `1.0.0` reads `v1.0`. Anything else is returned as is.

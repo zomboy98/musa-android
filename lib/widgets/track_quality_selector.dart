@@ -1049,14 +1049,10 @@ class _QualityGroupRow extends StatelessWidget {
     final title = detail == null || choice.mark == QualityMark.lossy
         ? choice.label
         : '$name $detail';
-    final provider = qualityServiceShortName(choice.service);
     final showLabel =
         title != choice.label &&
         !choice.label.toLowerCase().contains(name.toLowerCase());
-    final subtitle = [
-      if (provider.isNotEmpty) provider,
-      if (showLabel) choice.label,
-    ].join(' · ');
+    final subtitle = showLabel ? choice.label : '';
     final fg = scheme.onSurface;
     return Semantics(
       button: true,

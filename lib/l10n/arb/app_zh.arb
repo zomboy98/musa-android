@@ -352,25 +352,9 @@
   "@aboutTitle": {
     "description": "About page title"
   },
-  "aboutContributors": "贡献者",
-  "@aboutContributors": {
-    "description": "Section for contributors"
-  },
   "aboutMobileDeveloper": "移动版本开发者",
   "@aboutMobileDeveloper": {
     "description": "Role description for mobile dev"
-  },
-  "aboutLogoArtist": "有才华的艺术家创建了我们美丽的应用图标！",
-  "@aboutLogoArtist": {
-    "description": "Role description for logo artist"
-  },
-  "aboutTranslators": "译者",
-  "@aboutTranslators": {
-    "description": "Section for translators"
-  },
-  "aboutSpecialThanks": "特别鸣谢",
-  "@aboutSpecialThanks": {
-    "description": "Section for special thanks"
   },
   "aboutLinks": "相关链接",
   "@aboutLinks": {
@@ -396,22 +380,6 @@
   "@aboutFeatureRequestSubtitle": {
     "description": "Subtitle for feature request"
   },
-  "aboutTelegramChannel": "Telegram 频道",
-  "@aboutTelegramChannel": {
-    "description": "Link to Telegram channel"
-  },
-  "aboutTelegramChannelSubtitle": "公告和更新",
-  "@aboutTelegramChannelSubtitle": {
-    "description": "Subtitle for Telegram channel"
-  },
-  "aboutTelegramChat": "Telegram 社区",
-  "@aboutTelegramChat": {
-    "description": "Link to Telegram chat group"
-  },
-  "aboutTelegramChatSubtitle": "与其他用户聊天",
-  "@aboutTelegramChatSubtitle": {
-    "description": "Subtitle for Telegram chat"
-  },
   "aboutSocial": "社交",
   "@aboutSocial": {
     "description": "Section for social links"
@@ -423,15 +391,6 @@
   "aboutVersion": "版本",
   "@aboutVersion": {
     "description": "Version info label"
-  },
-  "aboutBinimumDesc": "QQDL 和 HiFi API 的创建者。本项目帮助完善了无损下载支持。",
-  "@aboutBinimumDesc": {
-    "description": "Credit description for binimum"
-  },
-  "aboutRuubiiiiDesc": "Provided many APIs and backend resources. A huge help for the project!",
-  "aboutSachinsenalDesc": "原 HiFi 项目创建者，为无损来源集成奠定了基础。",
-  "@aboutSachinsenalDesc": {
-    "description": "Credit description for sachinsenal0x64"
   },
   "aboutAppDescription": "搜索音乐元数据、管理扩展并整理你的乐库。",
   "@aboutAppDescription": {
@@ -5865,10 +5824,6 @@
       }
     }
   },
-  "aboutPaxsenixSubtitle": "Lyrics proxy for Musixmatch, Netease, Apple Music, QQ Music, Spotify, Deezer, YouTube, Kugou, and Genius",
-  "@aboutPaxsenixSubtitle": {
-    "description": "Subtitle for Paxsenix special thanks entry on the about page"
-  },
   "snackbarPlayingNext": "Playing next",
   "@snackbarPlayingNext": {
     "description": "Snackbar when a track is inserted as the next queue item"
@@ -6486,9 +6441,6 @@
   "optionsArtistTagModePrimarySubtitle": "仅将第一位艺术家写入所有下载的艺术家和专辑艺术家字段，例如「艺术家A」。",
   "aboutLyricsWebsite": "歌词网站",
   "aboutServiceStatus": "服务状态",
-  "aboutUnituneDesc": "Flaze开发的开源音乐链接解析器，用于跨平台回退匹配",
-  "aboutMusicBrainzDesc": "由MetaBrainz及其社区维护的开放音乐数据库，用于录音和发行信息匹配",
-  "aboutSquiglyDesc": "Liam Macmillan开发的通用音乐链接服务，用作最终跨平台回退匹配",
   "artistLatestRelease": "最新发行",
   "artistTopSongs": "热门歌曲",
   "setupMusicWelcome": "你的音乐，尽在一处",

@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:mornye/l10n/l10n.dart';
+import 'package:mornye/providers/app_update_provider.dart';
 import 'package:mornye/services/app_update_service.dart';
 import 'package:mornye/utils/string_utils.dart';
 import 'package:mornye/widgets/app_alert_dialog.dart';
@@ -24,10 +26,15 @@ class AppUpdateDialog extends StatefulWidget {
     super.key,
     required this.service,
     required this.offer,
+    this.onStage,
   });
 
   final AppUpdateService service;
   final AppUpdateOffer offer;
+
+  /// Reports the phase to the shared update state; null progress when the
+  /// phase has none. Called with [AppUpdateStage.available] when it closes.
+  final void Function(AppUpdateStage stage, double? progress)? onStage;
 
   @override
   State<AppUpdateDialog> createState() => _AppUpdateDialogState();
@@ -50,6 +57,10 @@ class _AppUpdateDialogState extends State<AppUpdateDialog>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _cancel?.cancel();
+    final onStage = widget.onStage;
+    if (onStage != null) {
+      scheduleMicrotask(() => onStage(AppUpdateStage.available, null));
+    }
     super.dispose();
   }
 
@@ -61,10 +72,7 @@ class _AppUpdateDialogState extends State<AppUpdateDialog>
     }
   }
 
-  Future<void> _postpone() async {
-    await widget.service.snooze(widget.offer.build);
-    if (mounted) Navigator.of(context).pop();
-  }
+  void _postpone() => Navigator.of(context).pop();
 
   Future<void> _start() async {
     if (_phase == _Phase.downloading ||
@@ -84,6 +92,7 @@ class _AppUpdateDialogState extends State<AppUpdateDialog>
       _received = 0;
       _failure = null;
     });
+    widget.onStage?.call(AppUpdateStage.downloading, 0);
     try {
       final File apk = await widget.service.download(
         widget.offer,
@@ -91,10 +100,18 @@ class _AppUpdateDialogState extends State<AppUpdateDialog>
         onProgress: (received, total) {
           if (!mounted) return;
           setState(() => _received = received);
+          widget.onStage?.call(
+            AppUpdateStage.downloading,
+            widget.offer.sizeBytes > 0
+                ? received / widget.offer.sizeBytes
+                : null,
+          );
         },
       );
       if (!mounted) return;
+      widget.onStage?.call(AppUpdateStage.readyToInstall, null);
       setState(() => _phase = _Phase.installing);
+      widget.onStage?.call(AppUpdateStage.installing, null);
       await widget.service.install(apk);
       if (mounted) Navigator.of(context).pop();
     } on AppUpdateException catch (error) {
@@ -256,10 +273,11 @@ Future<void> showAppUpdateDialog(
   BuildContext context, {
   required AppUpdateService service,
   required AppUpdateOffer offer,
+  void Function(AppUpdateStage stage, double? progress)? onStage,
 }) {
   return showAppDialog<void>(
     context: context,
     barrierDismissible: false,
-    builder: (_) => AppUpdateDialog(service: service, offer: offer),
+    builder: (_) => AppUpdateDialog(service: service, offer: offer, onStage: onStage),
   );
 }

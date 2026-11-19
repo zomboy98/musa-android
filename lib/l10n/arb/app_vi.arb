@@ -284,13 +284,13 @@
   "extensionAccountInvalidNumber": "Vui lòng nhập một số hợp lệ.",
   "settingsPlaybackSubtitle": "Trình phát, âm lượng, AutoMix và đầu ra âm thanh",
   "sectionPlayer": "Trình phát nhạc",
-  "sectionVolumeAndTransitions": "Trình phát tích hợp SpotiFLAC",
+  "sectionVolumeAndTransitions": "Volume and transitions",
   "sectionAudioOutput": "Đầu ra âm thanh",
   "usbBitPerfect": "Âm thanh Hi-Res và Bit-perfect",
   "usbBitPerfectDescription": "Giữ nguyên độ chính xác gốc của nguồn nhạc trên các đầu ra tương thích. Hãy chọn Direct USB hoặc AAudio độc quyền bên dưới; nếu không, đầu ra USB chuẩn của Android yêu cầu Android 14 trở lên. Áp dụng từ bài tiếp theo, không dùng AutoMix hay chuẩn hóa âm lượng. Phím âm lượng hệ thống có thể không điều chỉnh được Direct USB.",
   "usbHardwareVolume": "Âm lượng phần cứng DAC",
   "usbVolumeWarningTitle": "Kiểm tra âm lượng nghe của bạn",
-  "usbVolumeWarning": "Âm thanh truyền trực tiếp qua USB có thể lớn hơn nhiều so với trình phát thông thường, các nút âm lượng trên điện thoại có thể không điều chỉnh được mức âm thanh này. Hãy giảm âm lượng trên DAC hoặc bộ khuếch đại ​​trước khi bắt đầu. Khi tương thíc, SpotiFLAC sẽ tự động thiết lập mức âm lượng của DAC về tối đa là −40 dB ngay khi kết nối; tuy nhiên, điều này không đảm bảo mức âm lượng sẽ an toàn cho mọi loại thiết bị, bộ khuếch đại hoặc tai nghe.",
+  "usbVolumeWarning": "Âm thanh truyền trực tiếp qua USB có thể lớn hơn nhiều so với trình phát thông thường, các nút âm lượng trên điện thoại có thể không điều chỉnh được mức âm thanh này. Hãy giảm âm lượng trên DAC hoặc bộ khuếch đại ​​trước khi bắt đầu. Khi tương thíc, MUSA sẽ tự động thiết lập mức âm lượng của DAC về tối đa là −40 dB ngay khi kết nối; tuy nhiên, điều này không đảm bảo mức âm lượng sẽ an toàn cho mọi loại thiết bị, bộ khuếch đại hoặc tai nghe.",
   "usbVolumeAccept": "Tôi đã hiểu",
   "usbVolumeUnavailable": "Đã tạm dừng phát vì DAC này không có bộ chỉnh âm lượng phần cứng được xác nhận. Hãy giảm âm lượng trên DAC hoặc ampli trước, sau đó bật đầu ra âm lượng cố định nếu cần rồi chọn phát lại bài hát.",
   "usbFixedVolume": "Cho phép đầu ra USB âm lượng cố định",
@@ -838,25 +838,9 @@
   "@aboutTitle": {
     "description": "About page title"
   },
-  "aboutContributors": "Người đóng góp",
-  "@aboutContributors": {
-    "description": "Section for contributors"
-  },
   "aboutMobileDeveloper": "Nhà phát triển bản di động",
   "@aboutMobileDeveloper": {
     "description": "Role description for mobile dev"
-  },
-  "aboutLogoArtist": "Họa sĩ tài năng đã thiết kế logo tuyệt đẹp cho ứng dụng!",
-  "@aboutLogoArtist": {
-    "description": "Role description for logo artist"
-  },
-  "aboutTranslators": "Đội ngũ biên dịch",
-  "@aboutTranslators": {
-    "description": "Section for translators"
-  },
-  "aboutSpecialThanks": "Lời cảm ơn đặc biệt",
-  "@aboutSpecialThanks": {
-    "description": "Section for special thanks"
   },
   "aboutLinks": "Liên kết",
   "@aboutLinks": {
@@ -890,22 +874,6 @@
   "@aboutFeatureRequestSubtitle": {
     "description": "Subtitle for feature request"
   },
-  "aboutTelegramChannel": "Kênh Telegram",
-  "@aboutTelegramChannel": {
-    "description": "Link to Telegram channel"
-  },
-  "aboutTelegramChannelSubtitle": "Thông báo và cập nhật mới",
-  "@aboutTelegramChannelSubtitle": {
-    "description": "Subtitle for Telegram channel"
-  },
-  "aboutTelegramChat": "Cộng đồng Telegram",
-  "@aboutTelegramChat": {
-    "description": "Link to Telegram chat group"
-  },
-  "aboutTelegramChatSubtitle": "Trò chuyện cùng cộng đồng người dùng",
-  "@aboutTelegramChatSubtitle": {
-    "description": "Subtitle for Telegram chat"
-  },
   "aboutSocial": "Mạng xã hội",
   "@aboutSocial": {
     "description": "Section for social links"
@@ -917,27 +885,6 @@
   "aboutVersion": "Phiên bản",
   "@aboutVersion": {
     "description": "Version info label"
-  },
-  "aboutBinimumDesc": "Tác giả của QQDL & HiFi API — dự án góp phần định hình tính năng tải nhạc Lossless.",
-  "@aboutBinimumDesc": {
-    "description": "Credit description for binimum"
-  },
-  "aboutRuubiiiiDesc": "Provided many APIs and backend resources. A huge help for the project!",
-  "aboutSachinsenalDesc": "Tác giả dự án HiFi nguyên bản — nền tảng cho việc tích hợp các nguồn nhạc Lossless.",
-  "@aboutSachinsenalDesc": {
-    "description": "Credit description for sachinsenal0x64"
-  },
-  "aboutUnituneDesc": "Trình phân giải liên kết nhạc mã nguồn mở của Flaze, dùng để đối chiếu dự phòng đa nền tảng.",
-  "@aboutUnituneDesc": {
-    "description": "Credit for the UniTune resolver"
-  },
-  "aboutMusicBrainzDesc": "Cơ sở dữ liệu âm nhạc mở do MetaBrainz và cộng đồng duy trì, dùng để đối chiếu chéo thông tin bản thu.",
-  "@aboutMusicBrainzDesc": {
-    "description": "Credit for the MusicBrainz database"
-  },
-  "aboutSquiglyDesc": "Dịch vụ chuyển đổi liên kết nhạc đa nền tảng của Liam Macmillan, được dùng làm phương án dự phòng cuối cùng.",
-  "@aboutSquiglyDesc": {
-    "description": "Credit for the Squigly resolver"
   },
   "aboutAppDescription": "Tra cứu metadata âm nhạc, quản lý tiện ích mở rộng và sắp xếp thư viện của bạn.",
   "@aboutAppDescription": {
@@ -7575,10 +7522,6 @@
         "type": "String"
       }
     }
-  },
-  "aboutPaxsenixSubtitle": "Proxy lấy lời bài hát tổng hợp từ Musixmatch, NetEase, Apple Music, QQ Music, Spotify, Deezer, YouTube, Kugou và Genius",
-  "@aboutPaxsenixSubtitle": {
-    "description": "Subtitle for Paxsenix special thanks entry on the about page"
   },
   "snackbarPlayingNext": "Phát tiếp theo",
   "@snackbarPlayingNext": {

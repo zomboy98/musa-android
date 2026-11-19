@@ -936,25 +936,9 @@
   "@aboutTitle": {
     "description": "About page title"
   },
-  "aboutContributors": "Contributors",
-  "@aboutContributors": {
-    "description": "Section for contributors"
-  },
   "aboutMobileDeveloper": "Mobile version developer",
   "@aboutMobileDeveloper": {
     "description": "Role description for mobile dev"
-  },
-  "aboutLogoArtist": "The talented artist who created our beautiful app logo!",
-  "@aboutLogoArtist": {
-    "description": "Role description for logo artist"
-  },
-  "aboutTranslators": "Translators",
-  "@aboutTranslators": {
-    "description": "Section for translators"
-  },
-  "aboutSpecialThanks": "Special Thanks",
-  "@aboutSpecialThanks": {
-    "description": "Section for special thanks"
   },
   "aboutLinks": "Links",
   "@aboutLinks": {
@@ -988,22 +972,6 @@
   "@aboutFeatureRequestSubtitle": {
     "description": "Subtitle for feature request"
   },
-  "aboutTelegramChannel": "Telegram Channel",
-  "@aboutTelegramChannel": {
-    "description": "Link to Telegram channel"
-  },
-  "aboutTelegramChannelSubtitle": "Announcements and updates",
-  "@aboutTelegramChannelSubtitle": {
-    "description": "Subtitle for Telegram channel"
-  },
-  "aboutTelegramChat": "Telegram Community",
-  "@aboutTelegramChat": {
-    "description": "Link to Telegram chat group"
-  },
-  "aboutTelegramChatSubtitle": "Chat with other users",
-  "@aboutTelegramChatSubtitle": {
-    "description": "Subtitle for Telegram chat"
-  },
   "aboutSocial": "Social",
   "@aboutSocial": {
     "description": "Section for social links"
@@ -1015,30 +983,6 @@
   "aboutVersion": "Version",
   "@aboutVersion": {
     "description": "Version info label"
-  },
-  "aboutBinimumDesc": "The creator of QQDL & HiFi API. This project helped shape lossless download support.",
-  "@aboutBinimumDesc": {
-    "description": "Credit description for binimum"
-  },
-  "aboutRuubiiiiDesc": "Provided many APIs and backend resources. A huge help for the project!",
-  "@aboutRuubiiiiDesc": {
-    "description": "Credit description for Ruubiiiii"
-  },
-  "aboutSachinsenalDesc": "The original HiFi project creator. A foundation for lossless-source integration.",
-  "@aboutSachinsenalDesc": {
-    "description": "Credit description for sachinsenal0x64"
-  },
-  "aboutUnituneDesc": "Open-source music link resolver by Flaze, used for cross-platform fallback matching.",
-  "@aboutUnituneDesc": {
-    "description": "Credit for the UniTune resolver"
-  },
-  "aboutMusicBrainzDesc": "Open music database maintained by MetaBrainz and its community, used for recording cross-references.",
-  "@aboutMusicBrainzDesc": {
-    "description": "Credit for the MusicBrainz database"
-  },
-  "aboutSquiglyDesc": "Universal music link service by Liam Macmillan, used as a final cross-platform resolver fallback.",
-  "@aboutSquiglyDesc": {
-    "description": "Credit for the Squigly resolver"
   },
   "aboutAppDescription": "Search music metadata, manage add-ons, and organize your library.",
   "@aboutAppDescription": {
@@ -7786,10 +7730,6 @@
       }
     }
   },
-  "aboutPaxsenixSubtitle": "Lyrics proxy for Musixmatch, Netease, Apple Music, QQ Music, Spotify, Deezer, YouTube, Kugou, and Genius",
-  "@aboutPaxsenixSubtitle": {
-    "description": "Subtitle for Paxsenix special thanks entry on the about page"
-  },
   "snackbarPlayingNext": "Playing next",
   "@snackbarPlayingNext": {
     "description": "Snackbar when a track is inserted as the next queue item"
@@ -12557,5 +12497,31 @@
   "appUpdateUpToDate": "MUSA is up to date.",
   "@appUpdateUpToDate": {"description": "About - no update"},
   "appUpdateCheckFailed": "Could not check for updates. Try again later.",
-  "@appUpdateCheckFailed": {"description": "About - check failed"}
+  "@appUpdateCheckFailed": {"description": "About - check failed"},
+  "appUpdateSectionTitle": "Updates",
+  "@appUpdateSectionTitle": {"description": "Section title in About"},
+  "appUpdateInstalledVersion": "Installed version",
+  "@appUpdateInstalledVersion": {"description": "About - installed version label"},
+  "appUpdateInstalledValue": "{label} (build {build})",
+  "@appUpdateInstalledValue": {"description": "About - installed version value", "placeholders": {"label": {"type": "String"}, "build": {"type": "int"}}},
+  "appUpdateLastChecked": "Last checked: {when}",
+  "@appUpdateLastChecked": {"description": "About - last query time", "placeholders": {"when": {"type": "String"}}},
+  "appUpdateNeverChecked": "Not checked yet",
+  "@appUpdateNeverChecked": {"description": "About - no query made yet"},
+  "appUpdateAvailableLabel": "Update available: {label}",
+  "@appUpdateAvailableLabel": {"description": "About - status when a newer build is published", "placeholders": {"label": {"type": "String"}}},
+  "appUpdatePublishedOn": "Published {date}",
+  "@appUpdatePublishedOn": {"description": "About - release date", "placeholders": {"date": {"type": "String"}}},
+  "appUpdateOfferedLastKnown": "Could not check just now. This is the last known result.",
+  "@appUpdateOfferedLastKnown": {"description": "About - the query failed and the previous offer is shown"},
+  "appUpdateBannerText": "Update available · {label}",
+  "@appUpdateBannerText": {"description": "Home banner text", "placeholders": {"label": {"type": "String"}}},
+  "appUpdateDismiss": "Hide for now",
+  "@appUpdateDismiss": {"description": "Home banner dismiss tooltip"},
+  "appUpdateNotificationTitle": "Update available",
+  "@appUpdateNotificationTitle": {"description": "System notification title"},
+  "appUpdateNotificationBody": "{label} is ready to install. Tap to see it.",
+  "@appUpdateNotificationBody": {"description": "System notification body", "placeholders": {"label": {"type": "String"}}},
+  "appUpdateDownloading": "Downloading the update…",
+  "@appUpdateDownloading": {"description": "About - status while downloading"}
 }

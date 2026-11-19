@@ -191,20 +191,32 @@ void main() {
     tester,
   ) async {
     final (selector, _) = await _selector(tester);
-    final services = selector.choices.map((c) => c.service).toSet();
+    final services = {
+      for (final c in selector.choices) ...c.candidates.map((x) => x.service),
+    };
     expect(services, containsAll(['amazon', 'tidal', 'deezer']));
-    final amazon = selector.choices.where((c) => c.service == 'amazon');
-    expect(amazon.map((c) => c.id), containsAll(['opus', 'ac4', 'eac3']));
+    final amazon = [
+      for (final c in selector.choices)
+        for (final x in c.candidates)
+          if (x.service == 'amazon') x.id,
+    ];
+    expect(amazon, containsAll(['opus', 'ac4', 'eac3']));
     expect(selector.replacesFile, isTrue);
     expect(selector.noOffersNote, isNull);
   });
 
-  testWidgets('the same format from two providers stays under each one', (
+  testWidgets('the same format from two providers is one row that lists both', (
     tester,
   ) async {
     final (selector, _) = await _selector(tester);
-    final alike = selector.choices.where((c) => c.id == 'HI_RES_LOSSLESS');
-    expect(alike.map((c) => c.service).toSet(), {'tidal', 'deezer'});
+    final alike = selector.choices.where(
+      (c) => c.candidates.any((x) => x.id == 'HI_RES_LOSSLESS'),
+    );
+    expect(alike.length, 1);
+    expect(alike.single.candidates.map((c) => c.service).toSet(), {
+      'tidal',
+      'deezer',
+    });
   });
 
   testWidgets('a file with no ISRC still offers qualities from its title '
@@ -219,11 +231,11 @@ void main() {
     final (selector, queue) = await _selector(tester, stored: _downloaded);
     expect(selector.replacesFile, isTrue);
     final choice = selector.choices.firstWhere(
-      (c) => c.service == 'tidal' && c.id == 'HI_RES_LOSSLESS',
+      (c) => c.candidates.any((x) => x.id == 'HI_RES_LOSSLESS'),
     );
     selector.onSelected(choice);
     await tester.pump();
-    expect(queue.replaced.single.service, 'tidal');
+    expect(queue.replaced.single.service, 'deezer');
     expect(queue.replaced.single.quality, 'HI_RES_LOSSLESS');
     expect(queue.replaced.single.previous, _path);
     await tester.pump(const Duration(seconds: 11));

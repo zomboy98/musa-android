@@ -630,7 +630,9 @@ class _DownloadRun {
                 useFallback: shouldUseFallback,
               );
             },
-            priority: ProviderRequestPriority.queue,
+            priority: n._foregroundItemIds.contains(item.id)
+                ? ProviderRequestPriority.foreground
+                : ProviderRequestPriority.queue,
             cancelled: turnCancelled.future,
             maxTurn: DownloadQueueNotifier.providerTurnLimit,
             onTimeout: () => PlatformBridge.cancelDownload(item.id),

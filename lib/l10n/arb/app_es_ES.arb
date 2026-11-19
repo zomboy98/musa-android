@@ -854,25 +854,9 @@
   "@aboutTitle": {
     "description": "About page title"
   },
-  "aboutContributors": "Colaboradores",
-  "@aboutContributors": {
-    "description": "Section for contributors"
-  },
   "aboutMobileDeveloper": "Desarrollador de versiones móviles",
   "@aboutMobileDeveloper": {
     "description": "Role description for mobile dev"
-  },
-  "aboutLogoArtist": "¡El talentoso artista que creó el hermoso logo de nuestra app!",
-  "@aboutLogoArtist": {
-    "description": "Role description for logo artist"
-  },
-  "aboutTranslators": "Traductores",
-  "@aboutTranslators": {
-    "description": "Section for translators"
-  },
-  "aboutSpecialThanks": "Agradecimientos especiales",
-  "@aboutSpecialThanks": {
-    "description": "Section for special thanks"
   },
   "aboutLinks": "Enlaces",
   "@aboutLinks": {
@@ -906,22 +890,6 @@
   "@aboutFeatureRequestSubtitle": {
     "description": "Subtitle for feature request"
   },
-  "aboutTelegramChannel": "Canal de Telegram",
-  "@aboutTelegramChannel": {
-    "description": "Link to Telegram channel"
-  },
-  "aboutTelegramChannelSubtitle": "Anuncios y actualizaciones",
-  "@aboutTelegramChannelSubtitle": {
-    "description": "Subtitle for Telegram channel"
-  },
-  "aboutTelegramChat": "Comunidad de Telegram",
-  "@aboutTelegramChat": {
-    "description": "Link to Telegram chat group"
-  },
-  "aboutTelegramChatSubtitle": "Chatear con otros usuarios",
-  "@aboutTelegramChatSubtitle": {
-    "description": "Subtitle for Telegram chat"
-  },
   "aboutSocial": "Redes sociales",
   "@aboutSocial": {
     "description": "Section for social links"
@@ -933,30 +901,6 @@
   "aboutVersion": "Versión",
   "@aboutVersion": {
     "description": "Version info label"
-  },
-  "aboutBinimumDesc": "El creador de QQDL & HiFi API. Este proyecto ayudó a impulsar el soporte para descargas sin pérdida de calidad.",
-  "@aboutBinimumDesc": {
-    "description": "Credit description for binimum"
-  },
-  "aboutRuubiiiiDesc": "Aportó muchas API y recursos de servidor. Una gran ayuda para el proyecto.",
-  "@aboutRuubiiiiDesc": {
-    "description": "Credit description for Ruubiiiii"
-  },
-  "aboutSachinsenalDesc": "El creador del proyecto HiFi original. Sentó las bases para la integración de fuentes de audio sin pérdida de calidad.",
-  "@aboutSachinsenalDesc": {
-    "description": "Credit description for sachinsenal0x64"
-  },
-  "aboutUnituneDesc": "Resolvedor de links de música por Flaze, usado para coincidencias multiplataforma de respaldo.",
-  "@aboutUnituneDesc": {
-    "description": "Credit for the UniTune resolver"
-  },
-  "aboutMusicBrainzDesc": "Base de datos abierta mantenida por MetaBrainz y su comunidad, usado para grabar multi-referencias.",
-  "@aboutMusicBrainzDesc": {
-    "description": "Credit for the MusicBrainz database"
-  },
-  "aboutSquiglyDesc": "Servicio de enlaces de música universal por Liam Macmillan, usado como resolvedor multiplataforma final de respaldo.",
-  "@aboutSquiglyDesc": {
-    "description": "Credit for the Squigly resolver"
   },
   "aboutAppDescription": "Busca información musical, gestiona complementos y organiza tu biblioteca.",
   "@aboutAppDescription": {
@@ -7627,10 +7571,6 @@
         "type": "String"
       }
     }
-  },
-  "aboutPaxsenixSubtitle": "Servicio de letras de canciones para Musixmatch, Netease, Apple Music, QQ Music, Spotify, Deezer, YouTube, Kugou y Genius",
-  "@aboutPaxsenixSubtitle": {
-    "description": "Subtitle for Paxsenix special thanks entry on the about page"
   },
   "snackbarPlayingNext": "Próxima reproducción",
   "@snackbarPlayingNext": {

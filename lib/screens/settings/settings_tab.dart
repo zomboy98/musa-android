@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mornye/constants/app_info.dart';
 import 'package:mornye/constants/feature_flags.dart';
 import 'package:mornye/l10n/l10n.dart';
+import 'package:mornye/providers/app_update_provider.dart';
 import 'package:mornye/providers/user_profile_provider.dart';
 import 'package:mornye/screens/settings/profile_settings_page.dart';
 import 'package:mornye/screens/report/report_page.dart';
@@ -118,6 +119,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
   final FocusNode _searchFocusNode = FocusNode();
   AppLocalizations? _cachedLocalizations;
   List<_Group>? _cachedGroups;
+  bool _cachedUpdateAvailable = false;
   String _query = '';
 
   /// Desktop list-detail: the selected category ([_profileSelection] for the
@@ -161,7 +163,12 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
   /// so the full settings catalogue is easier to scan.
   List<_Group> _groups(BuildContext context) {
     final l10n = context.l10n;
-    if (identical(_cachedLocalizations, l10n) && _cachedGroups != null) {
+    final updateAvailable = ref.watch(
+      appUpdateProvider.select((s) => s.hasOffer),
+    );
+    if (identical(_cachedLocalizations, l10n) &&
+        _cachedUpdateAvailable == updateAvailable &&
+        _cachedGroups != null) {
       return _cachedGroups!;
     }
 
@@ -434,7 +441,9 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
             icon: Icons.info_outline,
             iconColor: Colors.grey,
             title: l10n.settingsAbout,
-            subtitle: '${l10n.aboutVersion} ${AppInfo.displayVersion}',
+            subtitle: updateAvailable
+                ? l10n.appUpdateNotificationTitle
+                : '${l10n.aboutVersion} ${AppInfo.displayVersion}',
             keywords: const ['version', 'license', 'contributor'],
             searchEntries: searchCatalog.about,
             pageBuilder: () => const AboutPage(),
@@ -444,6 +453,7 @@ class _SettingsTabState extends ConsumerState<SettingsTab> {
     ];
     _cachedLocalizations = l10n;
     _cachedGroups = groups;
+    _cachedUpdateAvailable = updateAvailable;
     return groups;
   }
 

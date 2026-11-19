@@ -657,7 +657,7 @@ void main() {
     expect(find.byKey(const ValueKey('quality-choice-mp3_128')), findsOne);
   });
 
-  testWidgets('the Opus submenu lists provider and detail, best first', (
+  testWidgets('the Opus submenu lists detail without provider, best first', (
     tester,
   ) async {
     await tester.pumpWidget(_host(_selector(mixed, [])));
@@ -668,7 +668,7 @@ void main() {
     expect(groupMenu, findsOneWidget);
     expect(find.text('OPUS 160 kbps'), findsOneWidget);
     expect(find.text('OPUS 64 kbps'), findsOneWidget);
-    expect(find.text('YouTube Music'), findsNWidgets(2));
+    expect(find.text('YouTube Music'), findsNothing);
     expect(
       tester.getTopLeft(find.text('OPUS 160 kbps')).dy,
       lessThan(tester.getTopLeft(find.text('OPUS 64 kbps')).dy),
@@ -681,7 +681,7 @@ void main() {
     );
   });
 
-  testWidgets('the Tidal AAC submenu names the provider and its tier', (
+  testWidgets('the Tidal AAC submenu lists each tier without the provider', (
     tester,
   ) async {
     await tester.pumpWidget(_host(_selector(mixed, [])));
@@ -691,8 +691,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('AAC 320 kbps'), findsOneWidget);
     expect(find.text('AAC 96 kbps'), findsOneWidget);
-    expect(find.text('Tidal · High'), findsOneWidget);
-    expect(find.text('Tidal · Low'), findsOneWidget);
+    expect(find.textContaining('Tidal'), findsNothing);
   });
 
   testWidgets('picking a row passes on the provider that offers it', (
@@ -749,8 +748,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Standard'), findsOneWidget);
     expect(find.text('Best Audio'), findsOneWidget);
-    expect(find.text('Amazon Music'), findsOneWidget);
-    expect(find.text('YouTube Music'), findsOneWidget);
+    expect(find.text('Amazon Music'), findsNothing);
+    expect(find.text('YouTube Music'), findsNothing);
   });
 
   for (final width in [320.0, 360.0]) {

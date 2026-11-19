@@ -281,4 +281,101 @@ void main() {
     expect(gate.waiting, 0);
     await run.queue.flushQueuePersistence();
   });
+
+  test('un reemplazo de calidad va primero, pausa el resto y lo reanuda',
+      timeout: const Timeout(Duration(seconds: 90)), () async {
+    final gate = ProviderRequestGate.instance;
+    final first = Completer<Map<String, dynamic>>();
+    final swap = Completer<Map<String, dynamic>>();
+    final run = await start(await tempDirectory(), [
+      'one',
+      'two',
+      'three',
+    ], (call) {
+      if (call == 1) return first.future;
+      if (call == 2) return swap.future;
+      return Future.value({'success': true});
+    });
+    final order = <String>[];
+    messenger.setMockMethodCallHandler(backend, (call) async {
+      if (call.method == 'getProviderMetadata') {
+        return {'album_artist': 'Artist'};
+      }
+      if (call.method == 'cancelDownload') {
+        if (!first.isCompleted) first.complete(_failure());
+        return null;
+      }
+      if (call.method != 'downloadByStrategy') return null;
+      final text = call.arguments.toString();
+      final name = ['swap', 'one', 'two', 'three'].firstWhere(
+        text.contains,
+        orElse: () => 'other',
+      );
+      order.add(name);
+      if (order.length == 1) return first.future;
+      if (name == 'swap') return swap.future;
+      return {'success': true};
+    });
+    run.queue.resumeQueue();
+    await _until(() => order.length == 1);
+    expect(order.first, 'one');
+    var prefetchHolding = false;
+    final prefetchRelease = Completer<void>();
+    final prefetch = gate.run<void>(
+      () async {
+        prefetchHolding = true;
+        await prefetchRelease.future;
+      },
+      priority: ProviderRequestPriority.prefetch,
+      onPreempt: () {
+        if (!prefetchRelease.isCompleted) prefetchRelease.complete();
+      },
+    ).catchError((Object _) {});
+    final swapTrack = Track(
+      id: 'example:swap',
+      name: 'swap',
+      artistName: 'Artist',
+      albumName: 'Album',
+      source: 'example-provider',
+      duration: 1,
+    );
+    final replaced = run.queue.replaceTrackQuality(
+      swapTrack,
+      'example-provider',
+      'HI_RES',
+      previousPath: '/none/old.flac',
+      previousHistoryId: '',
+      timeout: const Duration(seconds: 20),
+    );
+    await _until(() => order.length >= 2);
+    expect(order[1], 'swap');
+    expect(prefetchHolding && !prefetchRelease.isCompleted, isFalse);
+    expect(order.contains('two'), isFalse);
+    expect(run.queue.state.items.map((i) => i.id).length, 4);
+    run.queue.cancelTrackQualityReplacement(swapTrack);
+    swap.complete(_failure());
+    await replaced;
+    await prefetch;
+    for (var i = 0; i < 600; i++) {
+      if (order.where((n) => n == 'one').length >= 2 &&
+          order.contains('two')) {
+        break;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+    expect(order.where((n) => n == 'one').length, 2);
+    expect(order.contains('two'), isTrue);
+    await _until(
+      () => run.queue.state.items
+          .where((i) => ['one', 'two', 'three'].contains(i.track.name))
+          .every((i) => i.status != DownloadStatus.queued &&
+              i.status != DownloadStatus.downloading),
+    );
+    expect(run.queue.state.isPaused, isFalse);
+    expect(
+      run.queue.state.items.where((i) => i.track.name != 'swap').length,
+      3,
+    );
+    await run.queue.flushQueuePersistence();
+  });
 }

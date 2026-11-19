@@ -838,25 +838,9 @@
   "@aboutTitle": {
     "description": "About page title"
   },
-  "aboutContributors": "Katkıda Bulunanlar",
-  "@aboutContributors": {
-    "description": "Section for contributors"
-  },
   "aboutMobileDeveloper": "Mobil versiyon geliştiricisi",
   "@aboutMobileDeveloper": {
     "description": "Role description for mobile dev"
-  },
-  "aboutLogoArtist": "Uygulama logomuzu yaratmış yetenekli sanatçımız!",
-  "@aboutLogoArtist": {
-    "description": "Role description for logo artist"
-  },
-  "aboutTranslators": "Çevirmenler",
-  "@aboutTranslators": {
-    "description": "Section for translators"
-  },
-  "aboutSpecialThanks": "Özel teşekkür",
-  "@aboutSpecialThanks": {
-    "description": "Section for special thanks"
   },
   "aboutLinks": "Linkler",
   "@aboutLinks": {
@@ -890,22 +874,6 @@
   "@aboutFeatureRequestSubtitle": {
     "description": "Subtitle for feature request"
   },
-  "aboutTelegramChannel": "Telegram Kanalı",
-  "@aboutTelegramChannel": {
-    "description": "Link to Telegram channel"
-  },
-  "aboutTelegramChannelSubtitle": "Duyurular ve güncellemeler",
-  "@aboutTelegramChannelSubtitle": {
-    "description": "Subtitle for Telegram channel"
-  },
-  "aboutTelegramChat": "Telegram Grubu",
-  "@aboutTelegramChat": {
-    "description": "Link to Telegram chat group"
-  },
-  "aboutTelegramChatSubtitle": "Diğer kullanıcılarla sohbet et",
-  "@aboutTelegramChatSubtitle": {
-    "description": "Subtitle for Telegram chat"
-  },
   "aboutSocial": "Sosyal ağlar",
   "@aboutSocial": {
     "description": "Section for social links"
@@ -917,27 +885,6 @@
   "aboutVersion": "Versiyon",
   "@aboutVersion": {
     "description": "Version info label"
-  },
-  "aboutBinimumDesc": "QQDL ve HiFi API'nin yaratıcısı. Bu proje, kayıpsız indirme desteğinin şekillenmesine katkıda bulundu.",
-  "@aboutBinimumDesc": {
-    "description": "Credit description for binimum"
-  },
-  "aboutRuubiiiiDesc": "Provided many APIs and backend resources. A huge help for the project!",
-  "aboutSachinsenalDesc": "Orijinal HiFi projesinin yaratıcısı. Kayıpsız kaynak entegrasyonuna temel oluşturdu.",
-  "@aboutSachinsenalDesc": {
-    "description": "Credit description for sachinsenal0x64"
-  },
-  "aboutUnituneDesc": "Flaze tarafından geliştirilen, platformlar arası yedek eşleştirme için kullanılan açık kaynak müzik bağlantısı çözümleyicisi.",
-  "@aboutUnituneDesc": {
-    "description": "Credit for the UniTune resolver"
-  },
-  "aboutMusicBrainzDesc": "MetaBrainz ve topluluğu tarafından sürdürülen, kayıt çapraz referansları için kullanılan açık müzik veritabanı.",
-  "@aboutMusicBrainzDesc": {
-    "description": "Credit for the MusicBrainz database"
-  },
-  "aboutSquiglyDesc": "Liam Macmillan tarafından geliştirilen, son platformlar arası çözümleyici yedeği olarak kullanılan evrensel müzik bağlantısı hizmeti.",
-  "@aboutSquiglyDesc": {
-    "description": "Credit for the Squigly resolver"
   },
   "aboutAppDescription": "Müzik meta verilerini arayın, uzantıları yönetin ve kütüphanenizi düzenleyin.",
   "@aboutAppDescription": {
@@ -7575,10 +7522,6 @@
         "type": "String"
       }
     }
-  },
-  "aboutPaxsenixSubtitle": "Musixmatch, Netease, Apple Music, QQ Music, Spotify, Deezer, YouTube, Kugou ve Genius için şarkı sözü proxy'si",
-  "@aboutPaxsenixSubtitle": {
-    "description": "Subtitle for Paxsenix special thanks entry on the about page"
   },
   "snackbarPlayingNext": "Sırada çalınacak",
   "@snackbarPlayingNext": {

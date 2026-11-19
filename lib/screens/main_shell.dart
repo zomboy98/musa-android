@@ -44,11 +44,12 @@ import 'package:mornye/services/listening_statistics.dart';
 import 'package:mornye/services/discord_presence_service.dart';
 import 'package:mornye/services/notification_service.dart';
 import 'package:mornye/services/app_remote_config_service.dart';
-import 'package:mornye/services/app_update_service.dart';
+import 'package:mornye/providers/app_update_provider.dart';
+import 'package:mornye/screens/settings/about_page.dart';
 import 'package:mornye/widgets/app_announcement_dialog.dart';
 import 'package:mornye/widgets/app_snack_bar.dart';
 import 'package:mornye/widgets/download_queue_feedback.dart';
-import 'package:mornye/widgets/app_update_dialog.dart';
+import 'package:mornye/widgets/app_update_actions.dart';
 import 'package:mornye/widgets/animation_utils.dart';
 import 'package:mornye/widgets/nav_destination_icons.dart';
 import 'package:mornye/widgets/settings_group.dart';
@@ -311,6 +312,7 @@ class _MainShellState extends ConsumerState<MainShell>
       currentTabIndex: _currentIndex,
       showRepoTab: false,
     );
+    NotificationService().appUpdateNotifications.setHandler(_openUpdatesPage);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _repairSafAccessIfNeeded(
         knownLost: ref.read(initialSafAccessLostProvider),
@@ -391,6 +393,9 @@ class _MainShellState extends ConsumerState<MainShell>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_checkUpdatesOnResume());
+    }
     if (state == AppLifecycleState.resumed && _initialSafRepairComplete) {
       unawaited(_repairSafAccessIfNeeded());
     } else if (state == AppLifecycleState.paused) {
@@ -490,6 +495,7 @@ class _MainShellState extends ConsumerState<MainShell>
 
   @override
   void dispose() {
+    NotificationService().appUpdateNotifications.setHandler(null);
     _glassPanelOpen.dispose();
     ShellNavigationService.releaseSystemBack();
     _playbackSetupNotice.clear();
@@ -1318,6 +1324,13 @@ class _MainShellState extends ConsumerState<MainShell>
     return DownloadQueueFeedback(child: shell);
   }
 
+  /// Small dot on Settings while a published build is waiting.
+  Widget _updateDot(Widget child) => Badge(
+    smallSize: 8,
+    isLabelVisible: ref.watch(appUpdateProvider.select((s) => s.hasOffer)),
+    child: child,
+  );
+
   /// Phone, tablet and TV destinations, with the download count on Library.
   List<NavigationDestination> _navigationDestinations({
     required int queuedCount,
@@ -1392,8 +1405,10 @@ class _MainShellState extends ConsumerState<MainShell>
         ),
       if (!context.isMornye)
         NavigationDestination(
-          icon: const AppIcon(Icons.settings_outlined),
-          selectedIcon: SpinIcon(child: const AppIcon(Icons.settings)),
+          icon: _updateDot(const AppIcon(Icons.settings_outlined)),
+          selectedIcon: SpinIcon(
+            child: _updateDot(const AppIcon(Icons.settings)),
+          ),
           label: l10n.navSettings,
         ),
       if (context.isMornye)
