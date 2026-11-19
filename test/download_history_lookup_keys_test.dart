@@ -427,6 +427,9 @@ void main() {
         downloadHistoryBatchExistsProvider(
           request,
         ).overrideWith((ref) => const <String>{}),
+        historyFileExistenceCheckProvider.overrideWithValue(
+          (paths) async => {for (final path in paths) path: true},
+        ),
       ],
     );
     addTearDown(container.dispose);

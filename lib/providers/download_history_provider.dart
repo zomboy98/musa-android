@@ -579,6 +579,53 @@ class DownloadHistoryNotifier extends Notifier<DownloadHistoryState> {
     });
   }
 
+  Future<List<HistoryLookupRequest>> lookupsForPhysicalFiles(
+    Iterable<String> filePaths,
+  ) async {
+    final rows = await _db.getByIds(
+      await _db.getPhysicalFileIds(filePaths.toList()),
+    );
+    final lookups = <HistoryLookupRequest>[];
+    for (final row in rows.values) {
+      try {
+        final item = DownloadHistoryItem.fromJson(row);
+        lookups.add(
+          HistoryLookupRequest(
+            spotifyId: item.spotifyId ?? '',
+            isrc: item.isrc,
+            trackName: item.trackName,
+            artistName: item.artistName,
+          ),
+        );
+      } catch (_) {
+        continue;
+      }
+    }
+    return lookups;
+  }
+
+  /// Drops other rows of the same tracks whose file is confirmed gone, so a
+  /// stale row cannot keep a deleted download marked as downloaded.
+  Future<void> removeRowsWithMissingFiles(
+    Iterable<HistoryLookupRequest> lookups,
+  ) async {
+    final candidates = <String, DownloadHistoryItem>{};
+    for (final lookup in lookups) {
+      for (final item in await findTrackCandidatesAsync(lookup)) {
+        if (item.filePath.isNotEmpty) candidates[item.id] = item;
+      }
+    }
+    if (candidates.isEmpty) return;
+    final existence = await fileExistenceByPath([
+      for (final item in candidates.values) item.filePath,
+    ]);
+    final missing = [
+      for (final item in candidates.values)
+        if (existence[item.filePath] == false) item.id,
+    ];
+    if (missing.isNotEmpty) await removeManyFromHistory(missing);
+  }
+
   Future<void> removeManyFromHistory(Iterable<String> ids) async {
     final requestedIds = ids.toList(growable: false);
     try {
@@ -1395,19 +1442,103 @@ HistoryLookupRequest historyLookupForTrack(Track track) {
   );
 }
 
-// Batch lookups deliberately avoid per-row SAF verification; startup repair
-// reconciles stale rows.
+typedef FileExistenceCheck =
+    Future<Map<String, bool?>> Function(List<String> paths);
+
+final historyFileExistenceCheckProvider = Provider<FileExistenceCheck>(
+  (ref) => fileExistenceByPath,
+);
+
+/// Single source of truth for whether a history row's file is still there.
+/// Results are tri-state and cached briefly: only a confirmed absence hides a
+/// download, so an unplugged disk or a revoked folder grant hides nothing.
+/// The state holds the paths confirmed missing and when it was confirmed.
+class HistoryFilePresenceNotifier extends Notifier<Map<String, DateTime>> {
+  static const _ttl = Duration(seconds: 8);
+  static const _maxEntries = 4000;
+  final _seen = <String, ({bool? present, DateTime at})>{};
+
+  @override
+  Map<String, DateTime> build() {
+    _seen.clear();
+    return const {};
+  }
+
+  Future<Map<String, bool?>> verify(Iterable<String> paths) async {
+    final wanted = {
+      for (final path in paths)
+        if (path.isNotEmpty) path,
+    };
+    final now = DateTime.now();
+    final stale = [
+      for (final path in wanted)
+        if (_seen[path] == null || now.difference(_seen[path]!.at) > _ttl) path,
+    ];
+    if (stale.isNotEmpty) {
+      final found = await ref.read(historyFileExistenceCheckProvider)(stale);
+      if (!ref.mounted) return {for (final path in wanted) path: null};
+      final at = DateTime.now();
+      for (final path in stale) {
+        _seen[path] = (present: found[path], at: at);
+      }
+      _publish();
+    }
+    return {for (final path in wanted) path: _seen[path]?.present};
+  }
+
+  /// Call right after a file deletion is confirmed so every view reacts at once.
+  void markMissing(Iterable<String> paths) {
+    if (!ref.mounted) return;
+    final at = DateTime.now();
+    for (final path in paths) {
+      if (path.isNotEmpty) _seen[path] = (present: false, at: at);
+    }
+    _publish();
+  }
+
+  void _publish() {
+    if (_seen.length > _maxEntries) {
+      final cutoff = DateTime.now().subtract(_ttl);
+      _seen.removeWhere((_, value) => value.present != false && value.at.isBefore(cutoff));
+    }
+    final missing = {
+      for (final entry in _seen.entries)
+        if (entry.value.present == false) entry.key: entry.value.at,
+    };
+    if (!setEquals(state.keys.toSet(), missing.keys.toSet())) state = missing;
+  }
+}
+
+final historyFilePresenceProvider =
+    NotifierProvider<HistoryFilePresenceNotifier, Map<String, DateTime>>(
+      HistoryFilePresenceNotifier.new,
+    );
+
+String _historyRowPath(Map<String, dynamic> row) =>
+    (row['filePath'] as String?) ?? '';
+
+// A row alone does not mean the song is downloaded: its file must still exist.
+// Every matching row is considered so a stale copy cannot hide a live one.
 final downloadHistoryBatchExistsProvider = FutureProvider.autoDispose
     .family<Set<String>, HistoryBatchLookupRequest>((ref, request) async {
       ref.watch(
         downloadHistoryProvider.select((state) => state.loadedIndexVersion),
       );
-      final rows = await HistoryDatabase.instance.findExistingTracks(
+      final presence = ref.read(historyFilePresenceProvider.notifier);
+      final matches = await HistoryDatabase.instance.findAllExistingTrackFiles(
         request.tracks,
       );
+      final existence = await presence.verify([
+        for (final rows in matches)
+          for (final row in rows) _historyRowPath(row),
+      ]);
       return <String>{
-        for (var i = 0; i < rows.length; i++)
-          if (rows[i] != null) request.tracks[i].lookupKey,
+        for (var i = 0; i < matches.length; i++)
+          if (matches[i].any((row) {
+            final path = _historyRowPath(row);
+            return path.isEmpty || existence[path] != false;
+          }))
+            request.tracks[i].lookupKey,
       };
     });
 
@@ -1427,20 +1558,27 @@ _MemoryLookupKeys _memoryLookupKeys(HistoryLookupRequest request) => (
   ),
 );
 
-bool _historyLookupExistsInMemory(
+DownloadHistoryItem? _historyLookupMemoryMatch(
   DownloadHistoryState state,
   _MemoryLookupKeys keys,
 ) {
   for (final candidate in keys.spotifyIds) {
-    if (state.getBySpotifyId(candidate) != null) return true;
+    final item = state.getBySpotifyId(candidate);
+    if (item != null) return item;
   }
 
-  if (keys.isrc.isNotEmpty && state.getByIsrc(keys.isrc) != null) {
-    return true;
+  if (keys.isrc.isNotEmpty) {
+    final item = state.getByIsrc(keys.isrc);
+    if (item != null) return item;
   }
 
-  return state.findByTrackArtistKey(keys.trackArtist) != null;
+  return state.findByTrackArtistKey(keys.trackArtist);
 }
+
+bool _historyLookupExistsInMemory(
+  DownloadHistoryState state,
+  _MemoryLookupKeys keys,
+) => _historyLookupMemoryMatch(state, keys) != null;
 
 bool downloadHistoryHoldsTrack(DownloadHistoryState state, Track track) =>
     _historyLookupExistsInMemory(
@@ -1448,17 +1586,29 @@ bool downloadHistoryHoldsTrack(DownloadHistoryState state, Track track) =>
       _memoryLookupKeys(historyLookupForTrack(track)),
     );
 
+bool _historyItemConfirmedMissing(
+  DownloadHistoryItem item,
+  Map<String, DateTime> missing,
+) {
+  final at = missing[item.filePath];
+  // A file downloaded again after the absence was confirmed is not missing.
+  return at != null && !item.downloadedAt.isAfter(at);
+}
+
 Set<String> _mergeVisibleHistoryKeys(
   DownloadHistoryState state,
   List<_MemoryLookupKeys> memoryKeys,
   List<String> lookupKeys,
-  Set<String> persistedKeys,
-) {
+  Set<String> persistedKeys, [
+  Map<String, DateTime> missing = const {},
+  Set<String>? pathsToVerify,
+]) {
   final keys = <String>{...persistedKeys};
   for (var i = 0; i < memoryKeys.length; i++) {
-    if (_historyLookupExistsInMemory(state, memoryKeys[i])) {
-      keys.add(lookupKeys[i]);
-    }
+    final item = _historyLookupMemoryMatch(state, memoryKeys[i]);
+    if (item == null) continue;
+    pathsToVerify?.add(item.filePath);
+    if (!_historyItemConfirmedMissing(item, missing)) keys.add(lookupKeys[i]);
   }
   return keys;
 }
@@ -1484,11 +1634,13 @@ class _VisibleHistoryBatchExistsNotifier extends Notifier<Set<String>> {
       .toList(growable: false);
   List<DownloadHistoryItem>? _mergedLookupItems;
   Set<String>? _mergedPersistedKeys;
+  Map<String, DateTime>? _mergedMissing;
   Set<String> _merged = const <String>{};
 
   @override
   Set<String> build() {
     final history = ref.watch(downloadHistoryProvider);
+    final missing = ref.watch(historyFilePresenceProvider);
     final persistedKeys = ref
         .watch(downloadHistoryBatchExistsProvider(request))
         .maybeWhen(
@@ -1500,17 +1652,33 @@ class _VisibleHistoryBatchExistsNotifier extends Notifier<Set<String>> {
     // The lookup indexes live and change with lookupItems, so revision bumps
     // and count refreshes cannot change which tracks are held in memory.
     if (identical(history.lookupItems, _mergedLookupItems) &&
-        identical(persistedKeys, _mergedPersistedKeys)) {
+        identical(persistedKeys, _mergedPersistedKeys) &&
+        identical(missing, _mergedMissing)) {
       return _merged;
     }
+    final toVerify = <String>{};
     _merged = _mergeVisibleHistoryKeys(
       history,
       _memoryKeys,
       _lookupKeys,
       persistedKeys,
+      missing,
+      toVerify,
     );
     _mergedLookupItems = history.lookupItems;
     _mergedPersistedKeys = persistedKeys;
+    _mergedMissing = missing;
+    if (toVerify.isNotEmpty) {
+      Future.microtask(() async {
+        try {
+          await ref
+              .read(historyFilePresenceProvider.notifier)
+              .verify(toVerify);
+        } catch (_) {
+          // An inconclusive check keeps the row visible.
+        }
+      });
+    }
     return _merged;
   }
 

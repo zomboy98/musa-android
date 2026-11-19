@@ -12,10 +12,12 @@ Future<void> removeDeletedLibraryFileEntries(
 ) async {
   final paths = filePaths.toSet();
   if (paths.isEmpty) return;
-  await container
-      .read(downloadHistoryProvider.notifier)
-      .removePhysicalFiles(paths);
+  container.read(historyFilePresenceProvider.notifier).markMissing(paths);
+  final history = container.read(downloadHistoryProvider.notifier);
+  final lookups = await history.lookupsForPhysicalFiles(paths);
+  await history.removePhysicalFiles(paths);
   await container
       .read(localLibraryProvider.notifier)
       .removePhysicalFiles(paths);
+  await history.removeRowsWithMissingFiles(lookups);
 }

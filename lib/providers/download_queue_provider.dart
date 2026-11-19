@@ -85,6 +85,7 @@ import 'package:mornye/utils/lyrics_metadata_helper.dart';
 import 'package:mornye/utils/progress_stream_poller.dart';
 
 import 'package:mornye/providers/download_history_provider.dart';
+import 'package:mornye/providers/deleted_library_files.dart';
 import 'package:mornye/services/analytics/anonymous_metrics.dart';
 import 'package:mornye/services/native_download_history.dart';
 import 'package:mornye/services/native_download_worker_monitor.dart';
@@ -1158,7 +1159,9 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
         ? track.discNumber!
         : 0;
 
-    String payloadSpotifyId = track.id;
+    String payloadSpotifyId = track.source?.trim().toLowerCase() == 'local'
+        ? ''
+        : track.id;
     String payloadQobuzId = '';
     String payloadTidalId = '';
     if (track.id.startsWith('qobuz:')) {
@@ -1864,9 +1867,12 @@ class DownloadQueueNotifier extends Notifier<DownloadQueueState> {
       }
       if (onReady != null && !await onReady(newPath)) return null;
       if (await deleteFile(previousPath)) {
-        await ref
-            .read(downloadHistoryProvider.notifier)
-            .removeFromHistory(previousHistoryId);
+        if (previousHistoryId.isNotEmpty) {
+          await ref
+              .read(downloadHistoryProvider.notifier)
+              .removeFromHistory(previousHistoryId);
+        }
+        await removeDeletedLibraryFileEntries(ref.container, [previousPath]);
       }
       return newPath;
     }

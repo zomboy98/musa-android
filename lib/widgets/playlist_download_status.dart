@@ -70,6 +70,7 @@ final playlistRealDownloadProvider = FutureProvider.autoDispose
     .family<bool, Track>((ref, track) async {
       ref.watch(_resumeVersionProvider);
       ref.watch(_downloadInventoryChanges);
+      ref.watch(historyFilePresenceProvider);
       ref.watch(_catalogPublicationProvider(catalogPlayback.key(track)));
       ref.watch(
         downloadHistoryProvider.select((state) => state.loadedIndexVersion),
@@ -121,6 +122,7 @@ final playlistRealDownloadProvider = FutureProvider.autoDispose
 final playlistOfflineAudioProvider = FutureProvider.autoDispose
     .family<bool, Track>((ref, track) async {
       ref.watch(_resumeVersionProvider);
+      ref.watch(historyFilePresenceProvider);
       ref.watch(_catalogPublicationProvider(catalogPlayback.key(track)));
       final trackKey = trackCollectionKey(track);
       ref.watch(

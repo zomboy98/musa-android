@@ -187,7 +187,7 @@ void main() {
       find.byKey(const ValueKey('download-library-track')),
     );
     expect(_completedChecks(tester), 1);
-    expect(button.onPressed, isNull);
+    expect(button.onPressed, isNotNull);
     expect(checks, 1);
   });
 

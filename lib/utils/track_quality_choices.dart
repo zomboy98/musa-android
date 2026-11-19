@@ -355,7 +355,9 @@ bool qualityRequestDiffers(QualityMark requested, QualityMark actual) {
 /// entry, kept from the first provider that offers it; an option that declares
 /// no properties folds into a same-mark option that does. Options that stay
 /// alike get the provider's short name as a tag. Unavailable entries are left
-/// out.
+/// out. With [keepProviderTwins] an option another provider also offers is
+/// kept under each provider, so the user picks the provider as well as the
+/// format.
 List<TrackQualityChoice> mergeProviderQualityChoices(
   Iterable<({String service, Iterable<QualityOption> options})> providers, {
   Track? track,
@@ -365,6 +367,7 @@ List<TrackQualityChoice> mergeProviderQualityChoices(
   QualityMark? currentMark,
   String? currentDetail,
   SpecialQualityAvailability? availability,
+  bool keepProviderTwins = false,
 }) {
   final entries = <_Merged>[];
   var rank = -1;
@@ -393,6 +396,8 @@ List<TrackQualityChoice> mergeProviderQualityChoices(
                   (e) =>
                       e.choice.mark == choice.mark &&
                       e.choice.detail == choice.detail &&
+                      (!keepProviderTwins ||
+                          _sameService(e.choice.service, provider.service)) &&
                       !(choice.detail == null &&
                           isLossyMark(choice.mark) &&
                           _sameService(e.choice.service, provider.service) &&
@@ -431,7 +436,11 @@ List<TrackQualityChoice> mergeProviderQualityChoices(
   ]) {
     final known = entries
         .where(
-          (e) => e.choice.mark == bare.choice.mark && e.choice.detail != null,
+          (e) =>
+              e.choice.mark == bare.choice.mark &&
+              e.choice.detail != null &&
+              (!keepProviderTwins ||
+                  _sameService(e.choice.service, bare.choice.service)),
         )
         .toList();
     if (known.isEmpty) continue;

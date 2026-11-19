@@ -310,6 +310,16 @@ class _History extends DownloadHistoryNotifier {
   DownloadHistoryState build() => DownloadHistoryState();
 
   @override
+  Future<List<HistoryLookupRequest>> lookupsForPhysicalFiles(
+    Iterable<String> filePaths,
+  ) async => const [];
+
+  @override
+  Future<void> removeRowsWithMissingFiles(
+    Iterable<HistoryLookupRequest> lookups,
+  ) async {}
+
+  @override
   Future<void> removePhysicalFiles(Iterable<String> paths) async {
     removedFiles.addAll(paths);
     deletionCompleted.complete();

@@ -225,7 +225,7 @@ class UpdateChecker {
     bool? isAndroid,
     List<String>? supportedAbis,
     UpdateHost? host,
-    bool updatesEnabled = AppInfo.selfUpdatesEnabled,
+    bool updatesEnabled = AppInfo.upstreamReleaseUpdatesEnabled,
   }) : _client = client,
        _installedVersion = installedVersion,
        _host =

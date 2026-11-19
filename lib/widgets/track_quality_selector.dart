@@ -38,6 +38,7 @@ class TrackQualitySelector extends StatefulWidget {
     this.compactLockup = false,
     this.onCurrentTapped,
     this.requestedNote,
+    this.noOffersNote,
     this.capsule = false,
   });
 
@@ -67,6 +68,9 @@ class TrackQualitySelector extends StatefulWidget {
   final bool compactLockup;
   final VoidCallback? onCurrentTapped;
   final String? requestedNote;
+
+  /// Why no other quality is offered, shown instead of the generic line.
+  final String? noOffersNote;
 
   @override
   State<TrackQualitySelector> createState() => _TrackQualitySelectorState();
@@ -146,6 +150,7 @@ class _TrackQualitySelectorState extends State<TrackQualitySelector> {
         onShowInfo: widget.onShowInfo,
         onCancelSwitch: cancel,
         requestedNote: widget.requestedNote,
+        noOffersNote: widget.noOffersNote,
         onSelected: (choice) {
           if (choice.current) {
             widget.onCurrentTapped?.call();
@@ -421,12 +426,14 @@ class _QualityWindow extends StatefulWidget {
     this.onShowInfo,
     this.onCancelSwitch,
     this.requestedNote,
+    this.noOffersNote,
   });
 
   final String currentLabel;
   final QualityMark currentMark;
 
   final String? requestedNote;
+  final String? noOffersNote;
   final Rect? Function() measure;
   final ThemeData theme;
   final ColorScheme scheme;
@@ -568,7 +575,7 @@ class _QualityWindowState extends State<_QualityWindow>
           ),
           const SizedBox(height: 8),
           Text(
-            l10n.qualityPickerNoOtherQualities,
+            widget.noOffersNote ?? l10n.qualityPickerNoOtherQualities,
             style: TextStyle(
               color: fg.withValues(alpha: _softText),
               fontSize: 12,

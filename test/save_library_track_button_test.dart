@@ -342,7 +342,7 @@ void main() {
     final downloadedLabel = tester
         .element(find.byType(Scaffold))
         .l10n
-        .trackDownloaded;
+        .trackRemoveFromDevice;
     expect(
       find.byWidgetPredicate(
         (widget) =>
@@ -369,10 +369,13 @@ void main() {
     final finder = find.byKey(const ValueKey('download-library-track'));
     final button = tester.widget<IconButton>(finder);
     expect(_showsDownloadedCheck(tester), isTrue);
-    expect(button.onPressed, isNull);
+    expect(button.onPressed, isNotNull);
     final tooltip = tester.getSemantics(finder).tooltip;
     semantics.dispose();
-    expect(tooltip, tester.element(find.byType(Scaffold)).l10n.trackDownloaded);
+    expect(
+      tooltip,
+      tester.element(find.byType(Scaffold)).l10n.trackRemoveFromDevice,
+    );
   });
 
   testWidgets('failed download with no accessible file offers retry', (
@@ -432,10 +435,9 @@ void main() {
       semantics.dispose();
       expect(
         tooltip,
-        retained
-            ? '${l10n.trackAvailableOffline} • ${l10n.dialogDownload}'
-            : l10n.dialogDownload,
+        retained ? l10n.trackRemoveFromDevice : l10n.dialogDownload,
       );
+      if (retained) return;
       await tester.tap(finder);
       await tester.pumpAndSettle();
       expect(queue.tracks, [track]);

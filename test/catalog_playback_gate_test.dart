@@ -100,9 +100,17 @@ void main() {
     expect(run.fallbacks, [('a', false)]);
   });
 
-  test('la precarga no pide nada si el proveedor está en enfriamiento', () async {
+  test('la precarga salta el proveedor enfriado como la reproducción', () async {
     ProviderCooldown.instance.note('a', 900);
     final run = await build();
+    await run.playback.prefetch(_track('p1'));
+    expect(run.tried, ['b']);
+    expect(run.fallbacks.every((entry) => !entry.$2), isTrue);
+  });
+
+  test('la precarga sin relevo disponible no pide nada con el proveedor enfriado', () async {
+    ProviderCooldown.instance.note('a', 900);
+    final run = await build(alternatives: false);
     await expectLater(
       run.playback.prefetch(_track('p1')),
       throwsA(isA<CatalogPlaybackException>()),

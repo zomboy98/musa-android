@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mornye/providers/guided_tour_provider.dart';
@@ -18,7 +20,9 @@ import 'package:mornye/theme/mornye_theme.dart';
 import 'package:mornye/utils/adaptive_layout.dart';
 import 'package:mornye/utils/desktop_platform.dart';
 import 'package:mornye/utils/nav_bar_inset.dart';
+import 'package:mornye/services/app_update_service.dart';
 import 'package:mornye/widgets/animation_utils.dart';
+import 'package:mornye/widgets/app_update_dialog.dart';
 import 'package:mornye/widgets/settings_group.dart';
 import 'package:mornye/widgets/app_icon.dart';
 import 'package:mornye/widgets/app_sliver_header.dart';
@@ -156,6 +160,7 @@ class AboutPage extends StatelessWidget {
                       '${isBetaBuild ? ' · ${context.l10n.legalBetaTag}' : ''}',
                   showDivider: true,
                 ),
+                if (Platform.isAndroid) const _UpdateCheckItem(),
                 if (isBetaBuild)
                   _AboutSettingsItem(
                     icon: Icons.science_outlined,
@@ -614,6 +619,54 @@ class _TranslatorChip extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _UpdateCheckItem extends StatefulWidget {
+  const _UpdateCheckItem();
+
+  @override
+  State<_UpdateCheckItem> createState() => _UpdateCheckItemState();
+}
+
+class _UpdateCheckItemState extends State<_UpdateCheckItem> {
+  bool _checking = false;
+  String? _result;
+
+  Future<void> _check() async {
+    if (_checking) return;
+    final l10n = context.l10n;
+    setState(() {
+      _checking = true;
+      _result = null;
+    });
+    final service = AppUpdateService();
+    final check = await service.checkForUpdate(ignoreSnooze: true);
+    if (!mounted) return;
+    final offer = check.offer;
+    setState(() {
+      _checking = false;
+      _result = switch (check.status) {
+        AppUpdateStatus.upToDate => l10n.appUpdateUpToDate,
+        AppUpdateStatus.available || AppUpdateStatus.snoozed => null,
+        AppUpdateStatus.unavailable => l10n.appUpdateCheckFailed,
+      };
+    });
+    if (offer != null) {
+      await showAppUpdateDialog(context, service: service, offer: offer);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return _AboutSettingsItem(
+      icon: Icons.system_update_alt_rounded,
+      title: l10n.appUpdateCheck,
+      subtitle: _checking ? l10n.appUpdateChecking : _result,
+      onTap: _check,
+      showDivider: true,
     );
   }
 }

@@ -8,6 +8,10 @@ import 'package:mornye/utils/logger.dart';
 
 final _log = AppLogger('Prefetch');
 
+abstract interface class FailureDetail {
+  String get detail;
+}
+
 enum PrefetchNetwork { offline, metered, unmetered }
 
 PrefetchNetwork prefetchNetworkFor(List<ConnectivityResult> results) {
@@ -142,6 +146,18 @@ class UpcomingPrefetcher {
         'cancelled=${ids(cancelled)}';
     debugPrint(line);
     _log.i(line);
+  }
+
+  void _logFailure(String id, Object error) {
+    final detail = error is FailureDetail ? error.detail : '';
+    final text = '${error.runtimeType} $error${detail.isEmpty ? '' : ' $detail'}'
+        .replaceAll(RegExp(r'[a-zA-Z][a-zA-Z0-9+.-]*://\S+'), '<url>')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    final short = text.length > 480 ? text.substring(0, 480) : text;
+    final line = 'prefetch: failed key=${shortPrefetchId(id)} error=$short';
+    debugPrint(line);
+    _log.w(line);
   }
 
   /// The connection changed: a song being prepared that the new connection
@@ -303,8 +319,9 @@ class UpcomingPrefetcher {
           _done.add(id);
           _failures.remove(id);
           _failedUntil.remove(id);
-        } catch (_) {
-          if (!_stopped && generation == _generation) {
+        } catch (error) {
+          if (!_stopped && !identical(_dropped, track)) {
+            _logFailure(id, error);
             final failures = (_failures[id] ?? 0) + 1;
             _failures[id] = failures;
             final wait = providerWait?.call() ?? Duration.zero;

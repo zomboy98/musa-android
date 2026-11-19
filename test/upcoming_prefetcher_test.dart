@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mornye/models/track.dart';
 import 'package:mornye/services/catalog_audio_store.dart';
@@ -75,6 +76,32 @@ Future<void> _settle() async {
 
 void main() {
   final a = _track('a'), b = _track('b'), c = _track('c'), d = _track('d');
+
+  test('the failure line carries the sanitized cause of the error', () async {
+    final lines = <String>[];
+    final original = debugPrint;
+    debugPrint = (message, {wrapWidth}) => lines.add(message ?? '');
+    addTearDown(() => debugPrint = original);
+    final prefetcher = UpcomingPrefetcher(
+      prepare: (_) async => throw const CatalogPlaybackException(
+        'provider download failed',
+        detail: '1/2 category=provider_download_failed error_type=not_found '
+            'service=amazon https://example.com/x?token=abc',
+      ),
+      cancel: (_) async {},
+      isStreamingOnly: (_) async => true,
+      network: () async => PrefetchNetwork.unmetered,
+      key: (track) => track.id,
+      count: 1,
+    )..schedule([a]);
+    await _settle();
+    prefetcher.stop();
+    final failed = lines.singleWhere((l) => l.startsWith('prefetch: failed'));
+    expect(failed, contains('error_type=not_found'));
+    expect(failed, contains('service=amazon'));
+    expect(failed, isNot(contains('example.com')));
+    expect(failed, isNot(contains('token')));
+  });
 
   test('prepares the next songs one at a time up to the count', () async {
     final fakes = _Fakes();

@@ -25,8 +25,11 @@ class AppInfo {
 
   static const String appName = 'MUSA';
 
-  /// Keep self-updates off until MUSA has its own signed release channel.
-  static const bool selfUpdatesEnabled = false;
+  /// Android checks MUSA's own channel ([AppUpdateEndpoints.latestUrl]).
+  static const bool selfUpdatesEnabled = true;
+
+  /// Releases of the original project are never offered to people.
+  static const bool upstreamReleaseUpdatesEnabled = false;
 
   /// Upstream announcements are not part of MUSA's provider services.
   static const bool remoteAnnouncementsEnabled = false;

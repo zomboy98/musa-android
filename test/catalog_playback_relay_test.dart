@@ -307,20 +307,47 @@ void main() {
     },
   );
 
-  test('la precarga no releva ni pasa por candidatos tras el plazo', () async {
+  test('la precarga releva por los mismos proveedores que la reproducción', () async {
+    final fallbacks = <(String, bool)>[];
+    final (playback, tried) = await build({'a'}, fallbacks: fallbacks);
+    var asked = 0;
+    final alternatives = playback.streamingAlternatives!;
+    playback.streamingAlternatives = (first, quality, useFallback) {
+      asked++;
+      return alternatives(first, quality, useFallback);
+    };
+    await playback.prefetch(track);
+    expect(tried, ['a', 'b']);
+    expect(asked, 1);
+    expect(fallbacks.every((entry) => !entry.$2), isTrue);
+    final lease = await playback.acquire(track);
+    expect(tried, ['a', 'b']);
+    await lease.release();
+  });
+
+  test('el fallo de la precarga lleva la causa de cada intento', () async {
+    final (playback, tried) = await build({'a', 'b', 'c'});
+    await expectLater(
+      playback.prefetch(track),
+      throwsA(
+        isA<CatalogPlaybackException>()
+            .having((e) => e.detail, 'detail', contains('service=a'))
+            .having((e) => e.detail, 'detail', contains('service=b'))
+            .having((e) => e.detail, 'detail', isNot(contains('://'))),
+      ),
+    );
+    expect(tried, ['a', 'b', 'c']);
+  });
+
+  test('una precarga sin plazo cumplido no deja al proveedor primero ocupado', () async {
     final (playback, tried) = await build(
       {},
       delay: const Duration(milliseconds: 200),
     );
     playback.firstAttemptBudget = const Duration(milliseconds: 50);
-    var asked = 0;
-    playback.streamingAlternatives = (first, quality, _) async {
-      asked++;
-      return const [StreamingRequest('b', 'aac_160')];
-    };
     await playback.prefetch(track);
-    expect(tried, ['a']);
-    expect(asked, 0);
+    expect(tried.first, 'a');
+    expect(tried, contains('b'));
   });
 
   test('una precarga lenta no tumba la reproducción que se le une', () async {

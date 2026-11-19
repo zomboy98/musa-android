@@ -11,9 +11,12 @@ import 'package:mornye/models/download_item.dart';
 import 'package:mornye/models/track.dart';
 import 'package:mornye/providers/download_queue_provider.dart';
 import 'package:mornye/providers/extension_provider.dart';
+import 'package:mornye/providers/local_file_catalog_track_provider.dart';
 import 'package:mornye/providers/player_video_mode_provider.dart';
 import 'package:mornye/providers/player_video_session_provider.dart';
 import 'package:mornye/providers/settings_provider.dart';
+import 'package:mornye/services/library_media_identity.dart';
+import 'package:mornye/utils/logger.dart';
 import 'package:mornye/services/link/link_source_names.dart';
 import 'package:mornye/services/music_player_service.dart';
 import 'package:mornye/services/special_quality_availability.dart';
@@ -46,6 +49,23 @@ double estimatedQualityProgress(Duration elapsed, {required bool slow}) {
 }
 
 const double _fullLockupWidth = 200;
+
+final _log = AppLogger('PlayerQuality');
+
+/// Kind of the playing file's source: `path` for a file on the device, `saf`
+/// for a document URI, null for anything that is not a local file (streams,
+/// network shares, catalog entries).
+String? localSourceKind(String? source) {
+  final value = source?.trim() ?? '';
+  if (value.isEmpty) return null;
+  if (value.startsWith('content://')) return 'saf';
+  if (value.startsWith('/') ||
+      value.startsWith('file://') ||
+      RegExp(r'^[A-Za-z]:[\\/]').hasMatch(value)) {
+    return 'path';
+  }
+  return null;
+}
 
 /// Quality badge and video chip of the playing song, wired to the player. A
 /// streamed song switches quality in place; a downloaded one is downloaded
@@ -343,26 +363,26 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
                 ),
               )
             : SnackBarAction(
-          label: l10n.qualityPickerSwitchDetails,
-          onPressed: () {
-            if (!dialogContext.mounted) return;
-            showDialog<void>(
-              context: dialogContext,
-              builder: (context) => AlertDialog(
-                title: Text(l10n.qualityPickerSwitchDetailsTitle),
-                content: SelectableText(body),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: Text(
-                      MaterialLocalizations.of(context).okButtonLabel,
+                label: l10n.qualityPickerSwitchDetails,
+                onPressed: () {
+                  if (!dialogContext.mounted) return;
+                  showDialog<void>(
+                    context: dialogContext,
+                    builder: (context) => AlertDialog(
+                      title: Text(l10n.qualityPickerSwitchDetailsTitle),
+                      content: SelectableText(body),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: Text(
+                            MaterialLocalizations.of(context).okButtonLabel,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                  );
+                },
               ),
-            );
-          },
-        ),
       ),
     );
   }
@@ -377,13 +397,14 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
   }
 
   Future<void> _replaceDownload(
-    DownloadHistoryItem item,
     Track track,
-    TrackQualityChoice choice,
-  ) async {
+    TrackQualityChoice choice, {
+    required String previous,
+    String historyId = '',
+    String? service,
+  }) async {
     final messenger = ScaffoldMessenger.maybeOf(context);
     final l10n = context.l10n;
-    final previous = item.filePath;
     final token = _beginSwitch(
       track,
       choice,
@@ -393,10 +414,10 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
         .read(downloadQueueProvider.notifier)
         .replaceTrackQuality(
           track,
-          choice.service ?? item.service,
+          choice.service ?? service ?? 'tidal',
           choice.id,
           previousPath: previous,
-          previousHistoryId: item.id,
+          previousHistoryId: historyId,
           onReady: (newPath) async {
             if (widget.metadata.source != previous) return true;
             return requestPlaybackSourceSwitch(
@@ -519,7 +540,8 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
             colorScheme: widget.colorScheme,
             height: widget.slim ? 28 : 44,
             badgeSize: widget.slim ? 18 : (context.isMornye ? 22 : 26),
-            compact: widget.slim || _availableWidth < _fullLockupWidth * textScale,
+            compact:
+                widget.slim || _availableWidth < _fullLockupWidth * textScale,
           ),
           if (widget.inlineNotices)
             PreparationFeedback(
@@ -531,6 +553,24 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
         ],
       ),
     );
+  }
+
+  String? _loggedSelector;
+
+  void _logSelector(
+    String origin,
+    Track? track,
+    int providers,
+    int choices,
+    String src,
+  ) {
+    final isrc = (track?.isrc?.trim().isNotEmpty ?? false) ? 'si' : 'no';
+    final line =
+        'quality: track=$origin isrc=$isrc providers=$providers '
+        'choices=$choices src=$src';
+    if (_loggedSelector == line) return;
+    _loggedSelector = line;
+    _log.i(line);
   }
 
   List<({String service, List<QualityOption> options})> _providers() {
@@ -570,7 +610,8 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
         (catalog == null || trackCollectionKey(catalog) == preparing.key)) {
       return _preparing(preparing, catalog);
     }
-    final history = catalog != null || source == null
+    final kind = catalog == null ? localSourceKind(source) : null;
+    final memoryHistory = catalog != null || source == null
         ? null
         : ref.watch(
             downloadHistoryProvider.select(
@@ -579,15 +620,40 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
                   .firstOrNull,
             ),
           );
+    final storedHistory = memoryHistory != null || kind == null
+        ? null
+        : ref.watch(downloadHistoryForFileProvider(source!)).value;
+    final history = memoryHistory ?? storedHistory;
     ref.watch(extensionProvider.select(extensionQualityView));
+    final mediaItem = widget.metadata.item;
+    final mediaTrack = kind == null || mediaItem == null
+        ? null
+        : collectionTrackForMedia(mediaItem, null);
+    final mediaHasIsrc = mediaTrack?.isrc?.trim().isNotEmpty ?? false;
+    final localTrack =
+        catalog != null || history != null || kind == null || mediaHasIsrc
+        ? null
+        : ref.watch(localFileCatalogTrackProvider(source!)).value;
     final Track? track =
-        catalog ?? (history == null ? null : trackFromHistoryItem(history));
+        catalog ??
+        (history == null
+            ? (localTrack ?? mediaTrack)
+            : trackFromHistoryItem(history));
+    final origin = catalog != null
+        ? 'catalog'
+        : history != null
+        ? 'history'
+        : localTrack != null
+        ? 'library'
+        : mediaTrack != null
+        ? 'media'
+        : 'none';
+    final replacesFile = history != null || (kind != null && track != null);
     _abandonForTrack(track == null ? null : trackCollectionKey(track));
     final videoSession = ref.watch(playerVideoSessionProvider);
     final videoStarted = videoSession.started;
     if (videoStarted != null &&
-        (track == null ||
-            videoSession.loadingFor(trackCollectionKey(track)))) {
+        (track == null || videoSession.loadingFor(trackCollectionKey(track)))) {
       return _fading(
         'video',
         PreparingVideoMark(
@@ -640,8 +706,9 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
     final bitDepth = number(fileFacts?['bit_depth']);
     final bitrate = number(fileFacts?['bitrate']);
     final labelMark = qualityMarkFor('', label);
-    final dolbyVerified =
-        hasCodec ? isDolbyCodec(codec) : isDolbyCodec(currentId ?? '');
+    final dolbyVerified = hasCodec
+        ? isDolbyCodec(codec)
+        : isDolbyCodec(currentId ?? '');
     var declaredMark = isDolbyMark(labelMark)
         ? labelMark
         : declared?.mark ?? labelMark;
@@ -677,8 +744,11 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
             currentLabel: history?.quality,
             currentMark: mark,
             currentDetail: detail,
+            keepProviderTwins: true,
           );
     final choices = allChoices;
+    final providerCount = _providers().length;
+    _logSelector(origin, track, providerCount, choices.length, kind ?? 'other');
     final requestedId = catalog == null
         ? null
         : (catalogPlayback.qualityOverrideFor(catalog) ??
@@ -707,8 +777,11 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
         progress: progress,
         currentLabel: label,
         choices: choices,
+        noOffersNote: replacesFile && providerCount == 0
+            ? context.l10n.qualityPickerNoProviders
+            : null,
         switching: _switching,
-        replacesFile: history != null,
+        replacesFile: replacesFile,
         colorScheme: widget.colorScheme,
         lockup: true,
         compactLockup: true,
@@ -734,7 +807,15 @@ class _PlayerCoverQualityState extends ConsumerState<PlayerCoverQuality> {
           _playingMark = mark;
           _playingDetail = detail;
           if (history != null) {
-            _replaceDownload(history, target, choice);
+            _replaceDownload(
+              target,
+              choice,
+              previous: history.filePath,
+              historyId: history.id,
+              service: history.service,
+            );
+          } else if (replacesFile && source != null) {
+            _replaceDownload(target, choice, previous: source);
           } else {
             _switchStreaming(target, choice);
           }

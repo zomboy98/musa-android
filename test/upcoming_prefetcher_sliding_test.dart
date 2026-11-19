@@ -198,4 +198,30 @@ void main() {
     expect(ready, hasLength(window));
     expect(requests.values.every((n) => n == 1), isTrue);
   });
+
+  test('a failure after the plan was refreshed is not retried at once', () async {
+    final gate = Completer<void>();
+    final attempts = <String>[];
+    final churn = UpcomingPrefetcher(
+      prepare: (track) async {
+        attempts.add(track.id);
+        await gate.future;
+        throw StateError('fallo');
+      },
+      cancel: (track) async {},
+      isStreamingOnly: (track) async => true,
+      network: () async => PrefetchNetwork.unmetered,
+      key: (track) => track.id,
+      count: 3,
+    )..schedule(queue.skip(1).toList(), current: queue[0], index: 0);
+    await _settle();
+    expect(attempts, ['t1']);
+    churn.schedule(queue.skip(1).toList(), current: queue[0], index: 0);
+    await _settle();
+    gate.complete();
+    await _settle();
+    expect(attempts.where((id) => id == 't1'), hasLength(1));
+    expect(attempts, containsAll(['t1', 't2']));
+    churn.stop();
+  });
 }

@@ -10,6 +10,7 @@ import 'package:mornye/models/download_item.dart';
 import 'package:mornye/models/track.dart';
 import 'package:mornye/providers/saved_library_tracks_provider.dart';
 import 'package:mornye/providers/download_queue_provider.dart';
+import 'package:mornye/providers/track_download_removal.dart';
 import 'package:mornye/utils/saf_download_tree.dart';
 import 'package:mornye/widgets/download_progress_icon.dart';
 import 'package:mornye/widgets/playlist_download_status.dart';
@@ -76,6 +77,36 @@ class _SaveLibraryTrackButtonState
             item.error == downloadFolderAccessLostErrorMessage);
   }
 
+  bool _removing = false;
+
+  /// One tap on the check removes the local file everywhere the song shows
+  /// as downloaded; the song stays in its playlists as a streaming track.
+  Future<void> _removeDownload() async {
+    if (_removing) return;
+    _removing = true;
+    final container = ProviderScope.containerOf(context, listen: false);
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
+    try {
+      final removed = await removeTrackDownloads(container, widget.track);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            removed > 0
+                ? l10n.snackbarDeletedTracks(1)
+                : l10n.trackFileUnavailable,
+          ),
+        ),
+      );
+    } catch (_) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.trackFileUnavailable)),
+      );
+    } finally {
+      _removing = false;
+    }
+  }
+
   @override
   void dispose() {
     _tappedTimer?.cancel();
@@ -126,20 +157,16 @@ class _SaveLibraryTrackButtonState
         ),
         IconButton(
           key: const ValueKey('download-library-track'),
-          tooltip: downloaded
-              ? l10n.trackDownloaded
-              : offline
-              ? canDownload
-                    ? '${l10n.trackAvailableOffline} • $downloadAction'
-                    : l10n.trackAvailableOffline
-              : downloadAction,
+          tooltip: available ? l10n.trackRemoveFromDevice : downloadAction,
           icon: TrackDownloadProgressIcon(
             track: widget.track,
             available: available,
             failed: widget.downloadFailed,
             pending: _tapped,
           ),
-          onPressed: !canDownload
+          onPressed: available
+              ? _removeDownload
+              : !canDownload
               ? null
               : () async {
                   // A second tap while the song is already waiting or

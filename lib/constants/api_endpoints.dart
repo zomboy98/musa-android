@@ -14,3 +14,11 @@ Uri musaApiUri(String path, {String base = musaApiBaseUrl}) {
 }
 
 String get musaApiHostLabel => Uri.parse(musaApiBaseUrl).host;
+
+/// The only source the app consults for new builds.
+class AppUpdateEndpoints {
+  static const String host = 'musa.heyshin.app';
+  static const String latestUrl = 'https://$host/latest.json';
+  static const String releaseHost = 'github.com';
+  static const String releasePathPrefix = '/zomboy98/musa-android/';
+}

@@ -585,10 +585,19 @@ class HistoryDatabase {
   /// bounded chunk, returning only the id/path reference those callers need.
   Future<List<Map<String, dynamic>?>> findExistingTracks(
     List<HistoryLookupRequest> requests,
+  ) async => [
+    for (final rows in await findAllExistingTrackFiles(requests))
+      rows.isEmpty ? null : rows.first,
+  ];
+
+  /// Every row matching each request, newest first, as id/path references.
+  /// Lets callers look past a stale row to another copy that still exists.
+  Future<List<List<Map<String, dynamic>>>> findAllExistingTrackFiles(
+    List<HistoryLookupRequest> requests,
   ) async {
     if (requests.isEmpty) return const [];
     final db = await database;
-    final results = List<Map<String, dynamic>?>.filled(requests.length, null);
+    final results = [for (final _ in requests) <Map<String, dynamic>>[]];
     // Each candidate carries identity fields; stay below SQLite's legacy
     // 999-variable limit even for IDs with several URI aliases.
     const requestChunkSize = 19;
@@ -616,7 +625,7 @@ class HistoryDatabase {
         candidateRows.add("($requestIndex, $priority, '$kind', ?, ?, ?, ?, ?)");
         args.add(value);
         final request = chunk[requestIndex];
-        args.add((request.isrc ?? '').trim().toUpperCase());
+        args.add(normalizeIsrc(request.isrc));
         args.add(
           normalizeLookupText(request.artistName).isEmpty
               ? ''
@@ -697,7 +706,7 @@ class HistoryDatabase {
         FROM matches
         WHERE CASE
           WHEN request_isrc <> '' AND TRIM(COALESCE(isrc, '')) <> ''
-            THEN UPPER(TRIM(isrc)) = request_isrc
+            THEN UPPER(REPLACE(REPLACE(TRIM(isrc), '-', ''), ' ', '')) = request_isrc
           ELSE request_match_key <> '' AND match_key = request_match_key
             AND sort_track = request_title AND sort_artist = request_artist
         END
@@ -706,10 +715,12 @@ class HistoryDatabase {
       for (final row in rows) {
         final localIndex = (row['request_index'] as num).toInt();
         final resultIndex = chunkStart + localIndex;
-        results[resultIndex] ??= {
+        final matches = results[resultIndex];
+        if (matches.any((match) => match['id'] == row['id'])) continue;
+        matches.add({
           'id': row['id'],
           'filePath': _normalizeIosPath(row['file_path'] as String?),
-        };
+        });
       }
     }
     return results;

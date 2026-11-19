@@ -26,6 +26,7 @@ import 'package:mornye/services/download_request_payload.dart';
 import 'package:mornye/services/ffmpeg_probe.dart';
 import 'package:mornye/services/special_quality_availability.dart';
 import 'package:mornye/services/streaming_quality_resolver.dart';
+import 'package:mornye/services/upcoming_prefetcher.dart' show FailureDetail;
 import 'package:mornye/services/temporary_track_preparer.dart';
 import 'package:mornye/services/track_video_tags.dart';
 import 'package:path/path.dart' as p;
@@ -33,9 +34,11 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Safe boundary for failures from providers, storage and temporary preparation.
-class CatalogPlaybackException implements Exception {
-  const CatalogPlaybackException(this.category);
+class CatalogPlaybackException implements Exception, FailureDetail {
+  const CatalogPlaybackException(this.category, {this.detail = ''});
   final String category;
+  @override
+  final String detail;
 
   @override
   String toString() => 'CatalogPlaybackException: $category';
@@ -65,6 +68,7 @@ class _AcquireDiagnostics {
   bool relayed = false;
   String firstFailureReason = '';
   bool progressive = false;
+  final List<String> attempts = [];
   void Function(String service, String quality)? onResolved;
 
   bool get firstFailureUnavailable =>
@@ -456,6 +460,7 @@ class CatalogPlayback {
   Duration firstAttemptBudget = const Duration(seconds: 75);
   final Map<String, int> _foregroundWaiters = {};
   final Set<String> _relayedKeys = {};
+  final Map<String, ({String service, String quality})> _prefetchServed = {};
 
   /// Whether the last preparation of [track] needed another provider or
   /// format than the one first asked for.
@@ -685,6 +690,13 @@ class CatalogPlayback {
         );
         final id = key(track);
         _relayedKeys.remove(id);
+        if (_prefetching.contains(id) && diag.relayed) {
+          _prefetchServed.remove(id);
+          _prefetchServed[id] = (service: diag.service, quality: diag.quality);
+          while (_prefetchServed.length > 200) {
+            _prefetchServed.remove(_prefetchServed.keys.first);
+          }
+        }
         if (diag.relayed) {
           _relayedKeys.add(id);
           while (_relayedKeys.length > 200) {
@@ -742,15 +754,25 @@ class CatalogPlayback {
                 isKnownFailureReason(error.reason)
           ? error.reason
           : failureReasonGeneric;
+      var detail = '';
       try {
+        final description = describeCatalogFailure(
+          error,
+          service: diag.service,
+          quality: diag.quality,
+          progressive: diag.progressive,
+        );
+        detail = diag.attempts.isEmpty
+            ? description
+            : '${diag.attempts.join(' | ')} | final $description';
         final line =
             'preparation failed category=${sanitizeDiagnosticToken(category)} '
-            '${describeCatalogFailure(error, service: diag.service, quality: diag.quality, progressive: diag.progressive)}';
+            '$description';
         (failureDiagnostic ?? _failureLog.w)(line);
       } catch (_) {
         // Diagnostics must never change the playback result.
       }
-      throw CatalogPlaybackException(category);
+      throw CatalogPlaybackException(category, detail: detail);
     } finally {
       if (initial && identical(preparation.value, published)) {
         preparation.value = null;
@@ -779,10 +801,19 @@ class CatalogPlayback {
     String quality,
     _AcquireDiagnostics diag,
   ) {
+    final description = describeCatalogFailure(
+      error,
+      service: service,
+      quality: quality,
+      progressive: diag.progressive && attempt == 1,
+    );
+    final category = sanitizeDiagnosticToken(_failureReasonOf(error));
+    if (diag.attempts.length < 6) {
+      diag.attempts.add('$attempt/$total category=$category $description');
+    }
     _emitDiagnostic(
       'relay attempt failed attempt=$attempt/$total '
-      'category=${sanitizeDiagnosticToken(_failureReasonOf(error))} '
-      '${describeCatalogFailure(error, service: service, quality: quality, progressive: diag.progressive && attempt == 1)}',
+      'category=$category $description',
     );
   }
 
@@ -1011,7 +1042,6 @@ class CatalogPlayback {
     try {
       final lease = await acquire(
         track,
-        relay: false,
         engineFallback: false,
         background: true,
       );
@@ -1108,6 +1138,29 @@ class CatalogPlayback {
       throw StateError('Preparación cancelada');
     }
     if (lease != null) return lease;
+    final served = forced == null && !_prefetching.contains(id)
+        ? _prefetchServed[id]
+        : null;
+    if (served != null) {
+      final prepared = await _verifiedVariant(
+        storage,
+        _variantKey(id, bitrate, served.quality, served.service, fallback),
+        served.service,
+      );
+      if ((_generations[id] ?? 0) != generation) {
+        await prepared?.release();
+        throw StateError('Preparación cancelada');
+      }
+      if (prepared != null) {
+        _retentionLog('retention: hit source=cache initial=${diag != null}');
+        diag
+          ?..service = served.service
+          ..quality = served.quality
+          ..relayed = true;
+        return prepared;
+      }
+      _prefetchServed.remove(id);
+    }
     final usePlatform =
         _preparerFactory == null && _preparerFactoryWithVerification == null;
     final String service;

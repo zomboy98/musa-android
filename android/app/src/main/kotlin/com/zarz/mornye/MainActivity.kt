@@ -503,6 +503,7 @@ class MainActivity: FlutterFragmentActivity() {
         registerConcertCalendarChannel(messenger)
         registerAudioOutputChannel(messenger)
         registerLauncherIconChannel(messenger)
+        registerAppUpdateChannel(messenger)
 
         registerProgressStreams(messenger)
 
